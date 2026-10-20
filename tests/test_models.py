@@ -82,6 +82,26 @@ def test_model(snobj, model, result):
          for key in result]
    assert num.all(res)
 
+def test_model_fit_zero_weight_error(snobj):
+   """A model whose mask is everywhere zero must give an actionable error.
+
+   Reproduces the cryptic "All weights for filter B are zero" failure that
+   the 'st' shape parameter can hit for objects outside the calibration
+   sample, and checks that the raised message names the shape parameter and
+   suggests an alternative instead of a bare RuntimeError.
+   """
+   snobj.replot = False
+   snobj.choose_model('max_model', stype='st')
+
+   def _all_zero_mask(band, MJD, *a, **k):
+      n = len(MJD)
+      return (num.zeros(n), num.zeros(n), num.zeros(n, dtype=bool))
+
+   snobj.model.__call__ = _all_zero_mask
+   with pytest.raises(RuntimeError, match="shape parameter"):
+      snobj.fit(bands=['B', 'V'])
+
+
 @havesalt
 def test_SALT(snobj):
    snobj.replot=False

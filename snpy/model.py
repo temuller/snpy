@@ -217,8 +217,18 @@ class model:
       for band in bands:
          error[band] = self.parent.data[band].get_covar(flux=1)
 
-      pars,C,self.info,self.mesg,self.ier = \
-            leastsq(self._wrap_model, pars, (bands,error), full_output=1)
+      try:
+         pars,C,self.info,self.mesg,self.ier = \
+               leastsq(self._wrap_model, pars, (bands,error), full_output=1)
+      except RuntimeError as e:
+         if 'All weights for filter' in str(e):
+            raise RuntimeError(
+               "%s\nThis usually means the '%s' shape parameter cannot "
+               "describe the light curve of this object (for example, "
+               "'st' requires the object to be in the calibration sample). "
+               "Try choosing the model with a different shape parameter "
+               "(e.g. stype='dm15')." % (e, getattr(self, 'stype', '?')))
+         raise
       if self.ier > 4:  print(self.mesg)
 
       self.chisquare = np.sum(np.power(self.info['fvec'], 2))

@@ -40,3 +40,30 @@ def test_bolo_SED(snobj):
    checksum = sum(y)*1.e-44
    assert round(checksum,2) == round(2.71, 2)
 
+
+def test_bolo_SED_tmin_tmax(snobj):
+   """tmin/tmax must both be applied (AND) and keep mags/masks aligned.
+
+   Regression test: tmax used to overwrite tmin, and the per-filter mags/
+   masks arrays were not re-sliced to match the restricted epochs.
+   """
+   import numpy as num
+   from snpy import fset
+   l0 = fset['u'].wave.min()
+   l1 = fset['H'].wave.max()
+   bands = ['u','B','V','r','i','Y','J','H']
+   tmin, tmax = -10, 30
+   r = snobj.bolometric(bands,
+      method='SED', interpolate='spline', refband='B', lam1=l0,
+      lam2=l1, SED='H3', EBVhost=0, Rv=3.1, tmin=tmin, tmax=tmax,
+      extra_output=True)
+   epochs = num.asarray(r[0])
+   extra = r[4]
+   # both bounds applied
+   assert epochs.min() > tmin
+   assert epochs.max() < tmax
+   # epochs, flux and the per-filter arrays all stay the same length
+   assert len(epochs) == len(r[1]) == len(r[2])
+   assert extra['mags'].shape == (len(epochs), len(bands))
+   assert extra['masks'].shape == extra['mags'].shape
+
