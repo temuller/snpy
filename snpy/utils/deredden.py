@@ -10,13 +10,13 @@ wavelength. They are the following:
 '''
 from scipy.interpolate import interp1d
 
-import numpy as num
+import numpy as np
 from scipy.interpolate import UnivariateSpline
 
 def poly(x, c):
    ret = 0
    for i in range(len(c)):
-      ret += c[i]*num.power(x,i)
+      ret += c[i]*np.power(x,i)
    return ret
 
 def ccm(wave, strict_ccm=0):
@@ -36,14 +36,14 @@ def ccm(wave, strict_ccm=0):
    b = 0.0*x
   
    # **************************************************************
-   good = num.greater(x, 0.3) * num.less(x, 1.1)   # Infrared
-   if num.any(good):
-      a = num.where(good, 0.574 * num.power(x, 1.61), a)
-      b = num.where(good, -0.527 * num.power(x, 1.61), b)
+   good = np.greater(x, 0.3) * np.less(x, 1.1)   # Infrared
+   if np.any(good):
+      a = np.where(good, 0.574 * np.power(x, 1.61), a)
+      b = np.where(good, -0.527 * np.power(x, 1.61), b)
   
    #****************************************************************
-   good = num.greater_equal(x,1.1) * num.less(x, 3.3)        #Optical/NIR
-   if num.any(good):      #Use new constants from O'Donnell (1994)
+   good = np.greater_equal(x,1.1) * np.less(x, 3.3)        #Optical/NIR
+   if np.any(good):      #Use new constants from O'Donnell (1994)
       y = x - 1.82
       if strict_ccm:
          c1 = [ 1. , 0.17699, -0.50447, -0.02427,  0.72085,     #Original
@@ -58,43 +58,43 @@ def ccm(wave, strict_ccm=0):
                       11.102,    5.491,  -10.805,  3.347 ]
   
       poly = 0.0
-      for i in range(len(c1)): poly = poly + c1[i]*num.power(y, i)
-      a = num.where(good, poly, a)
+      for i in range(len(c1)): poly = poly + c1[i]*np.power(y, i)
+      a = np.where(good, poly, a)
       poly = 0.0
-      for i in range(len(c2)): poly = poly + c2[i]*num.power(y, i)
-      b = num.where(good, poly, b)
+      for i in range(len(c2)): poly = poly + c2[i]*np.power(y, i)
+      b = np.where(good, poly, b)
 
    #******************************************************************
-   good = num.greater_equal(x, 3.3) * num.less(x,8)          #Mid-UV
-   if num.any(good):
+   good = np.greater_equal(x, 3.3) * np.less(x,8)          #Mid-UV
+   if np.any(good):
       y = 1.0*x
-      good1 = num.greater(y, 5.9)
+      good1 = np.greater(y, 5.9)
       F_a = y*0.0    ; F_b = y*0.0
-      if num.any(good1) > 0:
+      if np.any(good1) > 0:
          y1 = y - 5.9
-         F_a = -0.04473 * num.power(y1,2) - 0.009779 * num.power(y1,3)
-         F_b = 0.2130 * num.power(y1,2)  +  0.1207 * num.power(y1,3)
-         F_a = num.where(good1, F_a, 0.0)
-         F_b = num.where(good1, F_b, 0.0)
+         F_a = -0.04473 * np.power(y1,2) - 0.009779 * np.power(y1,3)
+         F_b = 0.2130 * np.power(y1,2)  +  0.1207 * np.power(y1,3)
+         F_a = np.where(good1, F_a, 0.0)
+         F_b = np.where(good1, F_b, 0.0)
       
-      a = num.where(good, 
-           1.752 - 0.316*y - (0.104 / ( num.power(y-4.67,2) + 0.341 )) + F_a, a)
-      b = num.where(good,
-           -3.090 + 1.825*y + (1.206 / ( num.power(y-4.67,2) + 0.263 )) + F_b, b)
+      a = np.where(good, 
+           1.752 - 0.316*y - (0.104 / ( np.power(y-4.67,2) + 0.341 )) + F_a, a)
+      b = np.where(good,
+           -3.090 + 1.825*y + (1.206 / ( np.power(y-4.67,2) + 0.263 )) + F_b, b)
   
    #   *******************************
   
-   good = num.greater_equal(x, 8) * num.less_equal(x, 11)  #Far-UV
-   if num.any(good):
+   good = np.greater_equal(x, 8) * np.less_equal(x, 11)  #Far-UV
+   if np.any(good):
       y = x - 8.0
       c1 = [ -1.073, -0.628,  0.137, -0.070 ]
       c2 = [ 13.670,  4.257, -0.420,  0.374 ]
       poly = 0.0*y
-      for i in range(len(c1)):  poly = poly + c1[i]*num.power(y,i)
-      a = num.where(good, poly, a)
+      for i in range(len(c1)):  poly = poly + c1[i]*np.power(y,i)
+      a = np.where(good, poly, a)
       poly = 0.0*y
-      for i in range(len(c2)):  poly = poly + c2[i]*num.power(y,i)
-      b = num.where(good, poly, b)
+      for i in range(len(c2)):  poly = poly + c2[i]*np.power(y,i)
+      b = np.where(good, poly, b)
 
    return(a,b)
 
@@ -119,12 +119,12 @@ def fm(wave, R_V=3.1, avglmc=False, lmc2=False):
       foat array: :math:`R_\lambda = A_\lambda/E(B-V)`
 
    '''
-   x = 10000./ wave.astype(num.float64)  # Convert to inverse microns 
+   x = 10000./ wave.astype(np.float64)  # Convert to inverse microns 
    curve = x*0.
    
    # Set default values of c1,c2,c3,c4,gamma and x0 parameters
    if lmc2:
-      x0,gamma,c4,c3,c1,c1 = (4.626, 1.05, 0.42, 1.92, 1.31, -2.16)
+      x0,gamma,c4,c3,c2,c1 = (4.626, 1.05, 0.42, 1.92, 1.31, -2.16)
    elif avglmc:
       x0,gamma,c4,c3,c2,c1 = (4.596, 0.91, 0.64, 2.73, 1.11, -1.28)
    else:
@@ -136,19 +136,19 @@ def fm(wave, R_V=3.1, avglmc=False, lmc2=False):
    # R-dependent coefficients
     
    xcutuv = 10000.0/2700.0
-   xspluv = 10000.0/num.array([2700.0,2600.0])
-   iuv = num.greater_equal(x, xcutuv); N_UV = sum(iuv)
-   iopir = num.logical_not(iuv);  Nopir = sum(iopir)
+   xspluv = 10000.0/np.array([2700.0,2600.0])
+   iuv = np.greater_equal(x, xcutuv); N_UV = sum(iuv)
+   iopir = np.logical_not(iuv);  Nopir = sum(iopir)
    if N_UV > 0: 
-      xuv = num.concatenate([xspluv,x[iuv]])
+      xuv = np.concatenate([xspluv,x[iuv]])
    else:  
       xuv = xspluv
    
    yuv = c1  + c2*xuv
-   xuv2 = num.power(xuv,2)
-   yuv = yuv + c3*xuv2/(num.power(xuv2-x0**2,2) + xuv2*gamma**2)
-   mxuv = num.where(xuv < 5.9, 5.9, xuv)
-   yuv = yuv + c4*(0.5392*num.power(mxuv-5.9,2)+0.05644*num.power(mxuv-5.9,3))
+   xuv2 = np.power(xuv,2)
+   yuv = yuv + c3*xuv2/(np.power(xuv2-x0**2,2) + xuv2*gamma**2)
+   mxuv = np.where(xuv < 5.9, 5.9, xuv)
+   yuv = yuv + c4*(0.5392*np.power(mxuv-5.9,2)+0.05644*np.power(mxuv-5.9,3))
    yuv = yuv + R_V
    yspluv  = yuv[0:2]                  # save spline points
    
@@ -158,20 +158,20 @@ def fm(wave, R_V=3.1, avglmc=False, lmc2=False):
    # Compute optical portion of A(lambda)/E(B-V) curve
    # using cubic spline anchored in UV, optical, and IR
    
-   xsplopir = num.concatenate([[0],
-       10000.0/num.array([26500.0,12200.0,6000.0,5470.0,4670.0,4110.0])])
-   ysplir   = num.array([0.0,0.26469,0.82925])*R_V/3.1 
-   ysplop   = num.array([poly(R_V, [-4.22809e-01, 1.00270, 2.13572e-04] ),
+   xsplopir = np.concatenate([[0],
+       10000.0/np.array([26500.0,12200.0,6000.0,5470.0,4670.0,4110.0])])
+   ysplir   = np.array([0.0,0.26469,0.82925])*R_V/3.1 
+   ysplop   = np.array([poly(R_V, [-4.22809e-01, 1.00270, 2.13572e-04] ),
                poly(R_V, [-5.13540e-02, 1.00216, -7.35778e-05] ),
                poly(R_V, [ 7.00127e-01, 1.00184, -3.32598e-05] ),
-               poly(R_V, [ 1.19456, 1.01707, -5.46959e-03, 7.97809e-04 
+               poly(R_V, [ 1.19456, 1.01707, -5.46959e-03, 7.97809e-04,
                         -4.45636e-05] ) ])
      
-   ysplopir = num.concatenate([ysplir,ysplop])
+   ysplopir = np.concatenate([ysplir,ysplop])
    
    if Nopir > 0:
-      spl = UnivariateSpline(num.concatenate([xsplopir,xspluv]),
-                     num.concatenate([ysplopir,yspluv]), s=0)
+      spl = UnivariateSpline(np.concatenate([xsplopir,xspluv]),
+                     np.concatenate([ysplopir,yspluv]), s=0)
       curve[iopir] = spl(x[iopir])
    
    return curve
@@ -197,25 +197,25 @@ def fm07_full(wave, x0, gamma, c1,c2,c3,c4,c5,o1,o2,o3,R,iscale,ipower=1.84):
       foat array: E(V-\lambda)/E(B-V)
 
    '''
-   x = 10000./wave.astype(num.float64) # Convert ot inverse microns
+   x = 10000./wave.astype(np.float64) # Convert ot inverse microns
    curve = x*0.
    xcutuv = 10000.0/2700.0
-   iuv = num.greater_equal(x, xcutuv); N_UV = sum(iuv)
-   iopir = num.logical_not(iuv);  Nopir = sum(iopir)
+   iuv = np.greater_equal(x, xcutuv); N_UV = sum(iuv)
+   iopir = np.logical_not(iuv);  Nopir = sum(iopir)
 
    # Compute UV portion of A(lambda)/E(B-V) curve using FM fitting function and 
    # R-dependent coefficients
-   xspluv = 10000.0/num.array([2700.0,2600.0])
+   xspluv = 10000.0/np.array([2700.0,2600.0])
    x1,x2,x3 = (10000./3300, 10000./4000, 10000./5430)
    if N_UV > 0: 
-      xuv = num.concatenate([xspluv,x[iuv]])
+      xuv = np.concatenate([xspluv,x[iuv]])
    else:  
       xuv = xspluv
    
    yuv = c1  + c2*xuv
-   xuv2 = num.power(xuv,2)
-   yuv = yuv + c3*xuv2/(num.power(xuv2-x0**2,2) + xuv2*gamma**2)
-   yuv = yuv + num.greater(xuv,c5)*c4*num.power(xuv-c5,2)
+   xuv2 = np.power(xuv,2)
+   yuv = yuv + c3*xuv2/(np.power(xuv2-x0**2,2) + xuv2*gamma**2)
+   yuv = yuv + np.greater(xuv,c5)*c4*np.power(xuv-c5,2)
    yspluv  = yuv[0:2]                  # save spline points
    
    if (N_UV > 0): 
@@ -224,12 +224,12 @@ def fm07_full(wave, x0, gamma, c1,c2,c3,c4,c5,o1,o2,o3,R,iscale,ipower=1.84):
    # Compute optical portion of A(lambda)/E(B-V) curve
    # using cubic spline anchored in UV, optical, and IR
    
-   xsplir = num.array([0,0.25,0.50,0.75,1.0])
-   ysplir = iscale*num.power(xsplir, ipower) - R
-   xsplop = num.array([x3,x2,x1])
-   ysplop = num.array([o3,o2,o1])
-   xspl = num.concatenate([xsplir,xsplop,xspluv])
-   yspl = num.concatenate([ysplir,ysplop,yspluv])
+   xsplir = np.array([0,0.25,0.50,0.75,1.0])
+   ysplir = iscale*np.power(xsplir, ipower) - R
+   xsplop = np.array([x3,x2,x1])
+   ysplop = np.array([o3,o2,o1])
+   xspl = np.concatenate([xsplir,xsplop,xspluv])
+   yspl = np.concatenate([ysplir,ysplop,yspluv])
 
    if Nopir > 0:
       spl = UnivariateSpline(xspl, yspl, k=3, s=0)
@@ -276,15 +276,15 @@ def nataf(wave, R_V=3.1, strict_ccm=False):
    b = 0.0*x
   
    # **************************************************************
-   good = num.greater(x, 0.3) * num.less(x, 1.1)   # Infrared
-   if len(num.nonzero(good)) > 0: 
+   good = np.greater(x, 0.3) * np.less(x, 1.1)   # Infrared
+   if np.any(good): 
       alpha = 1.61 - 0.67*(R_V-3.1)
-      a = num.where(good, 0.574 * num.power(x, alpha), a)
-      b = num.where(good, -0.527 * num.power(x, alpha), b)
+      a = np.where(good, 0.574 * np.power(x, alpha), a)
+      b = np.where(good, -0.527 * np.power(x, alpha), b)
   
    #****************************************************************
-   good = num.greater_equal(x,1.1) * num.less(x, 3.3)        #Optical/NIR
-   if len(num.nonzero(good)) > 0:      #Use new constants from O'Donnell (1994)
+   good = np.greater_equal(x,1.1) * np.less(x, 3.3)        #Optical/NIR
+   if np.any(good):      #Use new constants from O'Donnell (1994)
       y = x - 1.82
       if strict_ccm:
          c1 = [ 1. , 0.17699, -0.50447, -0.02427,  0.72085,     #Original
@@ -299,43 +299,43 @@ def nataf(wave, R_V=3.1, strict_ccm=False):
                       11.102,    5.491,  -10.805,  3.347 ]
   
       poly = 0.0
-      for i in range(len(c1)): poly = poly + c1[i]*num.power(y, i)
-      a = num.where(good, poly, a)
+      for i in range(len(c1)): poly = poly + c1[i]*np.power(y, i)
+      a = np.where(good, poly, a)
       poly = 0.0
-      for i in range(len(c2)): poly = poly + c2[i]*num.power(y, i)
-      b = num.where(good, poly, b)
+      for i in range(len(c2)): poly = poly + c2[i]*np.power(y, i)
+      b = np.where(good, poly, b)
 
    #******************************************************************
-   good = num.greater_equal(x, 3.3) * num.less(x,8)          #Mid-UV
-   if num.any(good):
+   good = np.greater_equal(x, 3.3) * np.less(x,8)          #Mid-UV
+   if np.any(good):
       y = 1.0*x
-      good1 = num.greater(y, 5.9)
+      good1 = np.greater(y, 5.9)
       F_a = y*0.0    ; F_b = y*0.0
-      if num.any(good1):
+      if np.any(good1):
          y1 = y - 5.9
-         F_a = -0.04473 * num.power(y1,2) - 0.009779 * num.power(y1,3)
-         F_b = 0.2130 * num.power(y1,2)  +  0.1207 * num.power(y1,3)
-         F_a = num.where(good1, F_a, 0.0)
-         F_b = num.where(good1, F_b, 0.0)
+         F_a = -0.04473 * np.power(y1,2) - 0.009779 * np.power(y1,3)
+         F_b = 0.2130 * np.power(y1,2)  +  0.1207 * np.power(y1,3)
+         F_a = np.where(good1, F_a, 0.0)
+         F_b = np.where(good1, F_b, 0.0)
       
-      a = num.where(good, 
-           1.752 - 0.316*y - (0.104 / ( num.power(y-4.67,2) + 0.341 )) + F_a, a)
-      b = num.where(good,
-           -3.090 + 1.825*y + (1.206 / ( num.power(y-4.67,2) + 0.263 )) + F_b, b)
+      a = np.where(good, 
+           1.752 - 0.316*y - (0.104 / ( np.power(y-4.67,2) + 0.341 )) + F_a, a)
+      b = np.where(good,
+           -3.090 + 1.825*y + (1.206 / ( np.power(y-4.67,2) + 0.263 )) + F_b, b)
   
    #   *******************************
   
-   good = num.greater_equal(x, 8) * num.less_equal(x, 11)  #Far-UV
-   if num.any(good):
+   good = np.greater_equal(x, 8) * np.less_equal(x, 11)  #Far-UV
+   if np.any(good):
       y = x - 8.0
       c1 = [ -1.073, -0.628,  0.137, -0.070 ]
       c2 = [ 13.670,  4.257, -0.420,  0.374 ]
       poly = 0.0*y
-      for i in range(len(c1)):  poly = poly + c1[i]*num.power(y,i)
-      a = num.where(good, poly, a)
+      for i in range(len(c1)):  poly = poly + c1[i]*np.power(y,i)
+      a = np.where(good, poly, a)
       poly = 0.0*y
-      for i in range(len(c2)):  poly = poly + c2[i]*num.power(y,i)
-      b = num.where(good, poly, b)
+      for i in range(len(c2)):  poly = poly + c2[i]*np.power(y,i)
+      b = np.where(good, poly, b)
 
    return(a,b)
 
@@ -344,14 +344,14 @@ def unred_fm(wave, flux, ebv, R_V=3.1, z=0, avglmc=False, lmc2=False):
    '''Deredden by the Fitzpatrick (1999) Law'''
    R_lambda = fm(wave, R_V, avglmc=avglmc, lmc2=lmc2)
    A_lambda = ebv*R_lambda
-   unred_flux = flux * num.power(10.0, 0.4*A_lambda)
+   unred_flux = flux * np.power(10.0, 0.4*A_lambda)
    return unred_flux
 
 def unred_fm07(wave, flux, ebv, R_V=3.1, z=0):
    '''Deredden by the Fitzpatrick & Massa (2007) Law'''
    R_lambda = fm07(wave, R_V)
    A_lambda = ebv*R_lambda
-   unred_flux = flux * num.power(10.0, 0.4*A_lambda)
+   unred_flux = flux * np.power(10.0, 0.4*A_lambda)
    return unred_flux
 
 
@@ -392,24 +392,24 @@ def unred(wave, flux, ebv, R_V = 3.1, z=0, redlaw='ccm', strict_ccm=0):
       # note CCM gives A_lambda/A_V = a + b/Rv
       # therefore, A_lambda = E(B-V)*R_V*(a + b/Rv) = ebv*(a*R_V + b)
       A_lambda = ebv * (a*R_V + b)
-      unred_flux = flux * num.power(10.0, 0.4*A_lambda)
+      unred_flux = flux * np.power(10.0, 0.4*A_lambda)
    elif redlaw == 'nataf':
       a,b = nataf(wave, strict_ccm)
       # note CCM gives A_lambda/A_V = a + b/Rv
       # therefore, A_lambda = E(B-V)*R_V*(a + b/Rv) = ebv*(a*R_V + b)
       A_lambda = ebv * (a*R_V + b)
-      unred_flux = flux * num.power(10.0, 0.4*A_lambda)
+      unred_flux = flux * np.power(10.0, 0.4*A_lambda)
    elif redlaw == 'fm' or redlaw == 'f99':
       R_lambda = fm(wave, R_V, avglmc=False, lmc2=False)
       A_lambda = ebv*R_lambda
-      unred_flux = flux * num.power(10.0, 0.4*A_lambda)
+      unred_flux = flux * np.power(10.0, 0.4*A_lambda)
       # This is a little trick to return an a and b like CCM
       a = R_lambda/R_V
       b = R_lambda*0
    elif redlaw == 'fm07':
       R_lambda = fm07(wave, R_V)
       A_lambda = ebv*R_lambda
-      unred_flux = flux * num.power(10.0, 0.4*A_lambda)
+      unred_flux = flux * np.power(10.0, 0.4*A_lambda)
       # This is a little trick to return an a and b like CCM
       a = R_lambda/R_V
       b = R_lambda*0

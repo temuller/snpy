@@ -19,7 +19,7 @@ sampled data.  The basic idea is simple:
 
 For a 2D surface, you use an elliptical Gaussian window function and fit a
 2D polynomial.'''
-from numpy import *
+import numpy as np
 from numpy import isinf,divide
 import sys
 from .fit_poly import fit2Dpoly
@@ -33,7 +33,7 @@ def smooth(x, y, weight, xeval, sigma=None, N=None):
    by erry, find a smothing esimate of the data using Barry's GLOEs 
    algorithm evaluated at the points in xeval.  The Gaussian window function 
    will have a sigma=sigma.  '''
-   x,y,weight,xeval = list(map(asarray, [x,y,weight,xeval]))
+   x,y,weight,xeval = list(map(np.asarray, [x,y,weight,xeval]))
 
    if len(x) == 1:
       # only one point?  Just return it' value
@@ -43,9 +43,9 @@ def smooth(x, y, weight, xeval, sigma=None, N=None):
       sl = divide(y[1] - y[0], x[1] - x[0])
       if isinf(sl):
          raise ValueError("slope is infinite")
-      err2 = power(((xeval-x[0])/(x[1]-x[0])+1)/weight[0],2) + \
-             power((xeval-x[0])/(x[1]-x[0])/weight[1],2)
-      return y[0] + (xeval-x[0])*sl, sqrt(err2), xeval*0+sl, xeval*0
+      err2 = np.power(((xeval-x[0])/(x[1]-x[0])+1)/weight[0],2) + \
+             np.power((xeval-x[0])/(x[1]-x[0])/weight[1],2)
+      return y[0] + (xeval-x[0])*sl, np.sqrt(err2), xeval*0+sl, xeval*0
 
    # dists[i,j] is the distance from point xeval[i] to data point x[j]
    dists = x[NewAxis, :] - xeval[:, NewAxis]
@@ -55,11 +55,11 @@ def smooth(x, y, weight, xeval, sigma=None, N=None):
    else:
       FWHMs = []
       for i in range(len(dists)):
-         lids = less(dists[i], 0)
+         lids = np.less(dists[i], 0)
          rids = 1-lids
          # Adapt the sigma to the sparcity of data
-         sorts1 = sort(absolute(compress(lids, dists[i])))
-         sorts2 = sort(absolute(compress(rids, dists[i])))
+         sorts1 = np.sort(np.absolute(np.compress(lids, dists[i])))
+         sorts2 = np.sort(np.absolute(np.compress(rids, dists[i])))
          if len(sorts1) >= N and len(sorts2) >= N:
             FWHMs.append(max(sorts1[N-1],sorts2[N-1]))
          elif len(sorts1) >= N:
@@ -68,17 +68,17 @@ def smooth(x, y, weight, xeval, sigma=None, N=None):
             FWHMs.append(sorts2[N-1])
          else:
             raise RuntimeError("Error:  N too large for this many points")
-      sigmas = 10*array(FWHMs)
+      sigmas = 10*np.array(FWHMs)
 
    # now weight these distances with a Gaussian
-   arg = -0.5*power(dists, 2)/power(sigmas[:,NewAxis],2)
-   arg = where(less(arg, -100), -100, arg)
-   err_d = exp(arg)
+   arg = -0.5*np.power(dists, 2)/np.power(sigmas[:,NewAxis],2)
+   arg = np.where(np.less(arg, -100), -100, arg)
+   err_d = np.exp(arg)
    # normalize
    #norm = sum(err_d, axis=1)
-   norm = maximum.reduce(err_d, axis=1)
+   norm = np.maximum.reduce(err_d, axis=1)
    err_d = err_d/norm[:, NewAxis]
-   weight = err_d*power(weight[NewAxis,:],2)
+   weight = err_d*np.power(weight[NewAxis,:],2)
 
    # Lists of stuff we want to keep
    interps = []
@@ -93,7 +93,7 @@ def smooth(x, y, weight, xeval, sigma=None, N=None):
       cs.append(params[2])
 
    # Convert the lists arrays
-   interps,e_interps,bs,cs = list(map(array, [interps,e_interps,bs,cs]))
+   interps,e_interps,bs,cs = list(map(np.array, [interps,e_interps,bs,cs]))
    return(interps, e_interps, bs, cs)
 
 
@@ -105,10 +105,10 @@ def smooth2d(x, y, z, wt, xeval, yeval, sigmax=None, sigmay=None,
    function will have a sigma=sigmax in the x-direction and sigmay in the
    y-direction.'''
 
-   x,y,z,wt,xeval,yeval = list(map(asarray, [x,y,z,wt,xeval,yeval]))
+   x,y,z,wt,xeval,yeval = list(map(np.asarray, [x,y,z,wt,xeval,yeval]))
    # We re-scale the problem to   0 < x 1 and 0 < y < 1
-   x0 = min(x);  x1 = max(x)
-   y0 = min(y);  y1 = max(y)
+   x0 = np.min(x);  x1 = np.max(x)
+   y0 = np.min(y);  y1 = np.max(y)
 
    # Rescaled data
    u = (x - x0)/(x1 - x0)
@@ -120,11 +120,11 @@ def smooth2d(x, y, z, wt, xeval, yeval, sigmax=None, sigmay=None,
 
    # rescaled sigmas:
    if sigmax is not None:  
-      if len(shape(sigmax)) == 0:
+      if len(np.shape(sigmax)) == 0:
          sigmax = sigmax + 0.0*si
       sigmax = sigmax/(x1-x0)
    if sigmay is not None:  
-      if len(shape(sigmay)) == 0:
+      if len(np.shape(sigmay)) == 0:
          sigmay = sigmay + 0.0*sj
       sigmay = sigmay/(y1-y0)
 
@@ -147,15 +147,15 @@ def smooth2d(x, y, z, wt, xeval, yeval, sigmax=None, sigmay=None,
  
       if sigmax is None:
          # Find the Nx-th unique x-distance sorted by euclidean distance
-         dists2 = power(xdists,2) + power(ydists,2)
-         sids = argsort(dists2)
-         tempx = take(xdists,sids)
+         dists2 = np.power(xdists,2) + np.power(ydists,2)
+         sids = np.argsort(dists2)
+         tempx = np.take(xdists,sids)
          gotem = []
          for dx in tempx:
             if dx not in gotem:
                gotem.append(dx)
                if len(gotem) == Nx:  break
-         FWHMx = maximum.reduce(absolute(gotem))
+         FWHMx = np.maximum.reduce(np.absolute(gotem))
          sigx = FWHMx/1.665
       else:
          sigx = sigmax[i]
@@ -163,31 +163,31 @@ def smooth2d(x, y, z, wt, xeval, yeval, sigmax=None, sigmay=None,
       if sigmay is None:
          # Find the Nx-th unique x-distance sorted by euclidean distance
          if sids is None:
-            dists2 = power(xdists,2) + power(ydists,2)
-            sids = argsort(dists2)
-         tempy = take(ydists,sids)
+            dists2 = np.power(xdists,2) + np.power(ydists,2)
+            sids = np.argsort(dists2)
+         tempy = np.take(ydists,sids)
          gotem = []
          for dy in tempy:
             if dy not in gotem:
                gotem.append(dy)
                if len(gotem) == Ny:  break
-         FWHMy = maximum.reduce(absolute(gotem))
+         FWHMy = np.maximum.reduce(np.absolute(gotem))
          sigy = FWHMy/1.665
       else:
          sigy = sigmay[i]
  
       sigmaxs.append(sigx)
       sigmays.append(sigy)
-      dists2 = -0.5*(power(xdists,2)/sigx**2 + power(ydists,2)/sigy**2)
-      gids = greater(dists2, -100)
-      err_d = exp(compress(gids, dists2))
-      err_d = err_d/sum(err_d)
-      weight = err_d*(compress(gids, wt))
+      dists2 = -0.5*(np.power(xdists,2)/sigx**2 + np.power(ydists,2)/sigy**2)
+      gids = np.greater(dists2, -100)
+      err_d = np.exp(np.compress(gids, dists2))
+      err_d = err_d/np.sum(err_d)
+      weight = err_d*(np.compress(gids, wt))
       #print '-'*70
       #print i, xeval[i],yeval[i]
       #for j in range(len(weight)):
       #   print "   ",gids[j], compress(gids, x)[j], compress(gids, y)[j], compress(gids, xdists)[j], compress(gids, ydists)[j], sigx, sigy
-      params,e_params = fit2Dpoly(compress(gids,u), compress(gids,v), compress(gids, z),
+      params,e_params = fit2Dpoly(np.compress(gids,u), np.compress(gids,v), np.compress(gids, z),
             weight, k=2, x0=si[i], y0=sj[i])
       interps.append(params[0])
       e_interps.append(e_params[0])
@@ -197,7 +197,7 @@ def smooth2d(x, y, z, wt, xeval, yeval, sigmax=None, sigmay=None,
       fxys.append(params[4])
       fyys.append(params[5])
 
-   interps,e_interps,fxs,fys,fxxs,fyys,fxys,sigmaxs,sigmays = list(map(array,
+   interps,e_interps,fxs,fys,fxxs,fyys,fxys,sigmaxs,sigmays = list(map(np.array,
          [interps,e_interps,fxs,fys,fxxs,fyys,fxys,sigmaxs,sigmays]))
 
    return(interps,e_interps,fxs,fys,fxxs,fyys,fxys,sigmaxs,sigmays)
@@ -208,7 +208,7 @@ class line:
    allow the user to interpolate on the line.'''
    
    def __init__(self, x,y,dy,sigma=None, N=None):
-      self.xdata,self.ydata,self.dydata = list(map(asarray, [x,y,dy]))
+      self.xdata,self.ydata,self.dydata = list(map(np.asarray, [x,y,dy]))
 
       if not (len(self.xdata) == len(self.ydata) == len(self.dydata)):
          raise AttributeError("x,y,dy must all have same length")
@@ -228,16 +228,16 @@ class line:
          else:
             sigma = self.sigma
       res = self.eval(self.xdata, sigma=sigma, N=N)
-      rchisq = sum(power((res[0] - self.ydata)/self.dydata, 2))/len(self.xdata)
+      rchisq = np.sum(np.power((res[0] - self.ydata)/self.dydata, 2))/len(self.xdata)
       return(rchisq)
 
    def find_sigma(self, low, high, ds):
       '''Given a range of sigmas (low,high) and interval (ds), compute rchisq
       for each and return the smoothing length that gives rchisq = 1 (or as
       close as possible).'''
-      sigs = arange(low, high, ds)
-      chisqs = array([self.chisq(sigma=sig) for sig in sigs])
-      id = argsort(absolute(chisqs - 1))[0]
+      sigs = np.arange(low, high, ds)
+      chisqs = np.array([self.chisq(sigma=sig) for sig in sigs])
+      id = np.argsort(np.absolute(chisqs - 1))[0]
       return(sigs[id])
 
    def find_N(self, low, high):
@@ -249,19 +249,19 @@ class line:
       if high > max_N:
          high = max_N
       Ns = list(range(int(low), int(high)+1))
-      chisqs = array([self.chisq(N=N) for N in Ns])
-      id = argsort(absolute(chisqs - 1))[0]
+      chisqs = np.array([self.chisq(N=N) for N in Ns])
+      id = np.argsort(np.absolute(chisqs - 1))[0]
       return(Ns[id])
       
 
    def eval(self, x, sigma=None, N=None):
 
-      if not len(shape(x)):
+      if not len(np.shape(x)):
          scalar = 1
          x = [x]
       else:
          scalar = 0
-      x = asarray(x)
+      x = np.asarray(x)
       if sigma is None:
          if self.sigma is None:
             if N is None:
@@ -292,7 +292,7 @@ class surface:
    
    def __init__(self, x,y,z,dz,sigmax=None,sigmay=None, Nx=None, Ny=None):
 
-      self.xdata,self.ydata,self.zdata,self.dzdata = list(map(asarray, [x,y,z,dz]))
+      self.xdata,self.ydata,self.zdata,self.dzdata = list(map(np.asarray, [x,y,z,dz]))
 
       if not (len(self.xdata) == len(self.ydata) == len(self.zdata) == \
             len(self.dzdata)):
@@ -306,20 +306,20 @@ class surface:
 
    def eval(self, x, y, sigmax=None, sigmay=None, Nx=None, Ny=None, tol=0):
 
-      if not len(shape(x)):
+      if not len(np.shape(x)):
          scalar = 1
          x = [x]
       else:
          scalar = 0
 
-      if not len(shape(y)):
+      if not len(np.shape(y)):
          scalar = 1
          y = [y]
       else:
          scalar = 0
 
-      x = asarray(x)
-      y = asarray(y)
+      x = np.asarray(x)
+      y = np.asarray(y)
       if not (len(x) == len(y)):
          raise RuntimeError("x and y must have same length")
 

@@ -22,7 +22,7 @@ and zero-points built in.'''
 
 from __future__ import print_function
 import os,sys,types
-import numpy as num
+import numpy as np
 import scipy.integrate
 import scipy.interpolate
 from glob import glob
@@ -82,9 +82,9 @@ class spectrum:
       if self.file is not None:
          f = open(self.file)
          lines = f.readlines()
-         self.wave_data = num.array([float(line.split()[0]) \
+         self.wave_data = np.array([float(line.split()[0]) \
                for line in lines if line[0] != "#"])
-         self.resp_data = num.array([float(line.split()[1]) \
+         self.resp_data = np.array([float(line.split()[1]) \
                for line in lines if line[0] != "#"])
          f.close()
 
@@ -93,7 +93,7 @@ class spectrum:
 
    def waverange(self):
       if self.wave is not None:
-         return(num.minimum.reduce(self.wave), num.maximum.reduce(self.wave))
+         return(np.minimum.reduce(self.wave), np.maximum.reduce(self.wave))
       else:
          return(None)
 
@@ -112,7 +112,7 @@ class spectrum:
          return self.waverange()[0]
       elif name == "ave_wave":
          if self.wave is not None and self.resp is not None:
-            return num.sum(self.wave*self.resp)/num.sum(self.resp)
+            return np.sum(self.wave*self.resp)/np.sum(self.resp)
          else:
             return None
       else:
@@ -182,7 +182,7 @@ class filter(spectrum):
          result = self.response(spec, zeropad=zeropad)
 
          # Now use the spectrum's magnitude to compute zero point:
-         zpt = 2.5*num.log10(result) + mag
+         zpt = 2.5*np.log10(result) + mag
          zpts.append(zpt)
    
       if only1:
@@ -203,8 +203,8 @@ class filter(spectrum):
                   self.resp, kind=interp_method)
          fresp_int = self.mint(trim_wave)
 
-      fresp_int = num.where(num.less(wave,self.wave.min()), num.nan, fresp_int)
-      fresp_int = num.where(num.greater(wave,self.wave.max()), num.nan, 
+      fresp_int = np.where(np.less(wave,self.wave.min()), np.nan, fresp_int)
+      fresp_int = np.where(np.greater(wave,self.wave.max()), np.nan, 
                   fresp_int)
       return(fresp_int)
 
@@ -232,9 +232,9 @@ class filter(spectrum):
          wave = specwave.wave
          spec = specwave.flux
       else:
-         if type(specwave) is not num.ndarray or type(flux) is not num.ndarray:
+         if type(specwave) is not np.ndarray or type(flux) is not np.ndarray:
             raise TypeError("If specifying both specwave and flux, they must be arrays")
-         if len(num.shape(specwave)) != 1 or len(num.shape(flux)) != 1:
+         if len(np.shape(specwave)) != 1 or len(np.shape(flux)) != 1:
             raise TypeError("specwave and flux must be 1D arrays")
          wave = specwave
          spec = flux
@@ -249,14 +249,14 @@ class filter(spectrum):
             return(-1.0)
 
       # Now figure out the limits of the integration:
-      x_min = num.minimum.reduce(self.wave)
-      x_max = num.maximum.reduce(self.wave)
+      x_min = np.minimum.reduce(self.wave)
+      x_max = np.maximum.reduce(self.wave)
       try:
-         i_min = num.nonzero(num.greater(swave - x_min, 0))[0][0]
+         i_min = np.nonzero(np.greater(swave - x_min, 0))[0][0]
       except:
          i_min = 0
       try:
-         i_max = num.nonzero(num.greater(swave - x_max, 0))[0][0]
+         i_max = np.nonzero(np.greater(swave - x_max, 0))[0][0]
       except:
          i_max = len(swave)-1
    
@@ -283,8 +283,8 @@ class filter(spectrum):
                   kind=interp_method)
          fresp_int = self.mint(trim_wave)
       # Zero out any places beyond the definition of the filter:
-      fresp_int = num.where(num.less(trim_wave, x_min), 0, fresp_int)
-      fresp_int = num.where(num.greater(trim_wave, x_max), 0, fresp_int)
+      fresp_int = np.where(np.less(trim_wave, x_min), 0, fresp_int)
+      fresp_int = np.where(np.greater(trim_wave, x_max), 0, fresp_int)
 
       integrand = fresp_int*trim_spec
       if photons:
@@ -304,7 +304,7 @@ class filter(spectrum):
       '''Compute the AB offset for this filter. Due to the way SNooPy stores
       the zero-points, this only depends on filter function shape.'''
       return 65.4469-48.6-self.zp + \
-            2.5*num.log10(scipy.integrate.trapezoid(self.flux/self.wave,self.wave))
+            2.5*np.log10(scipy.integrate.trapezoid(self.flux/self.wave,self.wave))
 
 
    def synth_mag(self, specwave, flux=None, z=0, zeropad=0):
@@ -314,12 +314,12 @@ class filter(spectrum):
 
       # First check to make sure the spectrum is fluxed
       if isinstance(specwave, spectrum):
-         if not specwave.fluxed: return(num.nan)
+         if not specwave.fluxed: return(np.nan)
       res = self.response(specwave,flux=flux,z=z,zeropad=zeropad)
       if res <= 0:
-         return(num.nan)
+         return(np.nan)
       else:
-         return(-2.5*num.log10(res) + self.zp)
+         return(-2.5*np.log10(res) + self.zp)
 
    def synth_abmag(self, specwave, flux=None, z=0, zeropad=0):
       '''Compute the synthetic AB magnitude of the input spectrum defined by
@@ -328,13 +328,13 @@ class filter(spectrum):
 
       # First check to make sure the spectrum is fluxed
       if isinstance(specwave, spectrum):
-         if not specwave.fluxed: return(num.nan)
+         if not specwave.fluxed: return(np.nan)
 
       numer = self.response(specwave, flux=flux, z=z, zeropad=zeropad,
             photons=1)*ch
       # numer is in erg*Angstrom/s/cm^2
       if numer <= 0:
-         return(num.nan)
+         return(np.nan)
 
       if not isinstance(specwave, spectrum):
          # 3631 Jy*c --> erg*Angstrom/s/cm^2
@@ -343,17 +343,17 @@ class filter(spectrum):
          wave = specwave.wave
          denom = self.response(wave, 3631*1.e-23*c/wave, photons=0)
 
-      result = -2.5*num.log10(numer/denom)# - 48.6
+      result = -2.5*np.log10(numer/denom)# - 48.6
       return(result)
 
    def mag2flux(self, mag, specwave=None, flux=None, z=0):
       '''Convert a magnitude in this filter to the flux in erg/s/cm^2.'''
-      if len(num.shape(mag)) == 0:
+      if len(np.shape(mag)) == 0:
          scalar = True
-         mag = num.array([mag])
+         mag = np.array([mag])
       else:
          scalar = False
-         mag = num.asarray(mag)
+         mag = np.asarray(mag)
       if specwave is None:
          wave,flux = standards['Vega']['VegaB'].wave,\
                      standards['Vega']['VegaB'].resp
@@ -366,7 +366,7 @@ class filter(spectrum):
             raise TypeError("specwave must either be a spectrum instance or "\
                   "an array of wavelengths and flux must be specified")
          wave,flux = specwave,flux
-      flam = num.power(10, -0.4*(mag-self.zp))   # in photons/s/cm^2
+      flam = np.power(10, -0.4*(mag-self.zp))   # in photons/s/cm^2
       flam = flam/self.response(wave, flux, z=z)  # now in ergs/s/cm^2
       
       # now weighted average over the filter
@@ -393,7 +393,7 @@ class filter(spectrum):
       denom = self.response(s_wave, flux=s_flux, z=z, zeropad=zeropad,
             photons=0)
       if numer <= 0 or denom <=0:
-         return(num.nan)
+         return(np.nan)
       return(numer/denom)
 
 
@@ -418,11 +418,11 @@ class filter(spectrum):
                      standards['Vega']['VegaB'].resp
       flux0 = self.response(wave, flux, z, photons=1)
       if flux0 <= 0:
-         return(num.nan)
+         return(np.nan)
       redf = unred(wave, flux, -EBV, Rv, z, redlaw=redlaw, 
             strict_ccm=strict_ccm)[0]
       fluxr = self.response(wave, redf, z, photons=1)
-      return(-2.5*num.log10(fluxr/flux0)/EBV)
+      return(-2.5*np.log10(fluxr/flux0)/EBV)
 
 
 
@@ -739,7 +739,7 @@ for obs in obsdirs:
             # documentation.
             newf = filter(l[0], os.path.join(dir,l[1]), 0.0, 
                " ".join(l[3:]))
-            newf.zp = 16.84692 + 2.5*num.log10(
+            newf.zp = 16.84692 + 2.5*np.log10(
                   scipy.integrate.trapezoid(newf.resp/newf.wave, x=newf.wave))
             fset.observatories[obs_name].telescopes[tel_name].add_filter(newf)
          else:

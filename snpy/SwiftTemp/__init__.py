@@ -7,7 +7,7 @@ Version:  0.1
 This is a pure stretch template based on SN2011fe.
 '''
 import sys,os,string
-import numpy as num
+import numpy as np
 from scipy.interpolate import interp1d
 import scipy.optimize
 import pickle
@@ -44,13 +44,13 @@ class dm15_template:
 
    def setup_interpolators(self):
 
-      x,y = num.loadtxt(os.path.join(base, "SNIa_w1_template_fe.dat"),
+      x,y = np.loadtxt(os.path.join(base, "SNIa_w1_template_fe.dat"),
             unpack=True)
       self.interp['UVW1'] = interp1d(x,y, bounds_error=False)
-      x,y = num.loadtxt(os.path.join(base, "SNIa_w2_template_fe.dat"),
+      x,y = np.loadtxt(os.path.join(base, "SNIa_w2_template_fe.dat"),
             unpack=True)
       self.interp['UVW2'] = interp1d(x,y, bounds_error=False)
-      x,y = num.loadtxt(os.path.join(base, "SNIa_m2_template_fe.dat"),
+      x,y = np.loadtxt(os.path.join(base, "SNIa_m2_template_fe.dat"),
             unpack=True)
       self.interp['UVM2'] = interp1d(x,y, bounds_error=False)
 
@@ -60,11 +60,11 @@ class dm15_template:
 
       if generate:
          # generate the model light-curve from -10 to 80 in 1 day increments.
-         self.t = num.arange(-15,81, 1.0)
+         self.t = np.arange(-15,81, 1.0)
          for band in ['UVW1','UVW2','UVM2']:
             self.__dict__[band],self.__dict__['e'+band], mask = \
                self.eval(band, self.t)
-            self.__dict__['e'+band] = num.where(mask, self.__dict__['e'+band], -1.0)
+            self.__dict__['e'+band] = np.where(mask, self.__dict__['e'+band], -1.0)
 
    def deltaTmax(self, band):
       '''Given the current dm15, what is the time of maximum of [band]
@@ -100,13 +100,13 @@ class dm15_template:
       # Apply a stretch consistent with fits to dm15
       s = dm152s(self.dm15)
       evm = self.interp[band](evt/s)
-      eevm = num.zeros(evm.shape)   # No uncertainties
-      mask = ~num.isnan(evm)
+      eevm = np.zeros(evm.shape)   # No uncertainties
+      mask = ~np.isnan(evm)
       evm[~mask] = -1
       if mag:
          return evm,eevm,mask
       else:
-         return num.power(10, -0.4*evm),eevm,mask
+         return np.power(10, -0.4*evm),eevm,mask
 
 class st_template:
    def __init__(self):
@@ -129,13 +129,13 @@ class st_template:
 
    def setup_interpolators(self):
 
-      x,y = num.loadtxt(os.path.join(base, "SNIa_w1_template_fe.dat"),
+      x,y = np.loadtxt(os.path.join(base, "SNIa_w1_template_fe.dat"),
             unpack=True)
       self.interp['UVW1'] = interp1d(x,y, bounds_error=False)
-      x,y = num.loadtxt(os.path.join(base, "SNIa_w2_template_fe.dat"),
+      x,y = np.loadtxt(os.path.join(base, "SNIa_w2_template_fe.dat"),
             unpack=True)
       self.interp['UVW2'] = interp1d(x,y, bounds_error=False)
-      x,y = num.loadtxt(os.path.join(base, "SNIa_m2_template_fe.dat"),
+      x,y = np.loadtxt(os.path.join(base, "SNIa_m2_template_fe.dat"),
             unpack=True)
       self.interp['UVM2'] = interp1d(x,y, bounds_error=False)
 
@@ -145,11 +145,11 @@ class st_template:
 
       if generate:
          # generate the model light-curve from -10 to 80 in 1 day increments.
-         self.t = num.arange(-15,81, 1.0)
+         self.t = np.arange(-15,81, 1.0)
          for band in ['UVW1','UVW2','UVM2']:
             self.__dict__[band],self.__dict__['e'+band], mask = \
                self.eval(band, self.t)
-            self.__dict__['e'+band] = num.where(mask, self.__dict__['e'+band], -1.0)
+            self.__dict__['e'+band] = np.where(mask, self.__dict__['e'+band], -1.0)
 
    def deltaTmax(self, band):
       '''Given the current dm15, what is the time of maximum of [band]
@@ -184,10 +184,10 @@ class st_template:
 
       # Apply a stretch consistent with fits to dm15
       evm = self.interp[band](evt/self.st)
-      eevm = num.zeros(evm.shape)   # No uncertainties
-      mask = ~num.isnan(evm)
+      eevm = np.zeros(evm.shape)   # No uncertainties
+      mask = ~np.isnan(evm)
       evm[~mask] = -1.0
       if mag:
          return evm,eevm,mask
       else:
-         return num.power(10, -0.4*evm),eevm,mask
+         return np.power(10, -0.4*evm),eevm,mask

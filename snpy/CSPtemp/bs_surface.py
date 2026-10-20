@@ -2,8 +2,7 @@
 from __future__ import print_function
 from snpy import CSPtemp
 import os,sys
-from numpy import *
-from pygplot import *
+import numpy as np
 import pickle
 import scipy.interpolate as inter
 
@@ -19,15 +18,15 @@ t_low = -10.0
 t_high = 70
 
 bands = ['u','B','g','V','r','i','Y','J','H']
-dm15s = arange(31)/30.0*(dm15_high-dm15_low) + dm15_low
-ts = arange(81)/80.0*(t_high-t_low) + t_low
+dm15s = np.arange(31)/30.0*(dm15_high-dm15_low) + dm15_low
+ts = np.arange(81)/80.0*(t_high-t_low) + t_low
 
 data0 = {}
 list0 = {}
 SNe = {}
 for band in bands:
    data0[band],list0[band] = CSPtemp.dm15tempc.get_data(band)
-   list0[band] = array(list0[band])
+   list0[band] = np.array(list0[band])
    SNe[band] = list({}.fromkeys(list0[band]).keys())
    SNe[band].sort()
 
@@ -53,13 +52,13 @@ for j in range(50):
       t_mat.append(ts)
       for band in bands:
          N = len(SNe[band])
-         randints = random.randint(0, N, size=(N,))
+         randints = np.random.randint(0, N, size=(N,))
          data1 = []
          sn_list = [SNe[band][id] for id in randints]
          masks = [list0[band] == sn for sn in sn_list]
-         data1 = concatenate([compress(m, data0[band], axis=1) for m in masks],
+         data1 = np.concatenate([np.compress(m, data0[band], axis=1) for m in masks],
                axis=1)
-         list1 = concatenate([list0[band][m] for m in masks])
+         list1 = np.concatenate([list0[band][m] for m in masks])
          list1 = list1.tolist()
          CSPtemp.dm15tempc.set_data(band, data1, list1)
 
@@ -67,13 +66,13 @@ for j in range(50):
          z_mat[band].append(z)
          ez_mat[band].append(ez)
    
-   x = ravel(array(t_mat))
-   y = ravel(array(dm15_mat))
+   x = np.ravel(np.array(t_mat))
+   y = np.ravel(np.array(dm15_mat))
    smooths = {}
    for band in bands:  
       smooths[band] = 0.1
-      z = ravel(array(z_mat[band]))
-      ez = ravel(array(ez_mat[band]))
+      z = np.ravel(np.array(z_mat[band]))
+      ez = np.ravel(np.array(ez_mat[band]))
       print("fitting band ",band)
       print(inter.__file__)
       try:

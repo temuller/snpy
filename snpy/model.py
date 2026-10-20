@@ -21,14 +21,14 @@ from scipy.optimize import leastsq
 from scipy.optimize import brent
 from scipy.interpolate import splrep,splev
 import scipy.interpolate
-from numpy import *
+import numpy as np
 #from numpy import median, bool, diag
 from numpy.linalg import inv
 import pickle
 from glob import glob
 
 Ia_w,Ia_f = kcorr.get_SED(0, 'H3')
-gconst = -0.5*log(2*pi)
+gconst = -0.5*np.log(2*np.pi)
 
 debug = 0
 base = os.path.dirname(globals()['__file__'])
@@ -37,10 +37,10 @@ it_sigma = 1.0
 
 def _quniform_prior(p,pmin,pmax,sigma):
    '''A quasi-uniform prior (uniform with Gaussian tails).'''
-   norm = 1.0/((pmax - pmin)+sqrt(2*pi)*sigma)
+   norm = 1.0/((pmax - pmin)+np.sqrt(2*np.pi)*sigma)
    if pmin < p < pmax:  return norm
-   if p <= pmin:  return norm*exp(-0.5*(p-pmin)**2/sigma**2)
-   if p >= pmax:  return norm*exp(-0.5*(p-pmax)**2/sigma**2)
+   if p <= pmin:  return norm*np.exp(-0.5*(p-pmin)**2/sigma**2)
+   if p >= pmax:  return norm*np.exp(-0.5*(p-pmax)**2/sigma**2)
 
 
 class model:
@@ -117,17 +117,17 @@ class model:
          K = scipy.interpolate.splev(t+self.Tmax, tck)
          k0 = scipy.interpolate.splev(tck[0][0], tck)
          k1 = scipy.interpolate.splev(tck[0][-1], tck)
-         K = where(less(t+self.Tmax, tck[0][0]), k0, K)
-         K = where(greater(t+self.Tmax, tck[0][-1]), k1, K)
-         mids = argmin(absolute(t[:,newaxis]-self.parent.data[band].MJD[newaxis,:]+\
+         K = np.where(np.less(t+self.Tmax, tck[0][0]), k0, K)
+         K = np.where(np.greater(t+self.Tmax, tck[0][-1]), k1, K)
+         mids = np.argmin(np.absolute(t[:,np.newaxis]-self.parent.data[band].MJD[np.newaxis,:]+\
                self.Tmax), axis=1)
          # mask based on original mask and limits of Hsiao spectrum
          ks_st = getattr(self.parent, 'ks_s', 1.0)
          mask2 = self.parent.ks_mask[band][mids]*\
-               greater_equal(t/ks_st, -19)*less_equal(t/ks_st, 70)
+               np.greater_equal(t/ks_st, -19)*np.less_equal(t/ks_st, 70)
       else:
          K = 0*t
-         mask2 = ones(t.shape, dtype=bool)
+         mask2 = np.ones(t.shape, dtype=np.bool)
       return K,mask2
 
    def MWR(self, band, t):
@@ -152,7 +152,8 @@ class model:
             R = self.MWRobs[band]
          else:
             self.MWRobs[band] = \
-                  self.parent.data[band].filter.R(self.parent.Rv_gal)
+                  self.parent.data[band].filter.R(self.parent.Rv_gal,
+                        redlaw=self.parent.redlaw_gal)
             R = self.MWRobs[band]
       return R
 
@@ -220,7 +221,7 @@ class model:
             leastsq(self._wrap_model, pars, (bands,error), full_output=1)
       if self.ier > 4:  print(self.mesg)
 
-      self.chisquare = sum(power(self.info['fvec'], 2))
+      self.chisquare = np.sum(np.power(self.info['fvec'], 2))
       self.dof = len(self.info['fvec']) - len(self._free)
       if self.dof < 1:
          print("Warning!  less than 1 degree of freedom!")
@@ -242,13 +243,13 @@ class model:
             print("       Error for %s not computed" % (self._free[i]))
             self.errors[self._free[i]] = 0
          else:
-            self.errors[self._free[i]] += sqrt(C[i,i])
+            self.errors[self._free[i]] += np.sqrt(C[i,i])
          if self._free[i] not in self.C:  self.C[self._free[i]] = {}
          for j in range(len(self._free)):
             self.C[self._free[i]][self._free[j]] = C[i,j]
 
    def covar(self, band, t):
-      return zeros((t.shape[0],t.shape[0]))
+      return np.zeros((t.shape[0],t.shape[0]))
 
    def systematics(self):
       '''compute the systematic errors associated with the model paramters.
@@ -301,32 +302,32 @@ class model:
       for band in bands:
          if debug: print(">>> calling model member function")
          mod,err,mask = self.__call__(band, self.parent.data[band].MJD)
-         if not any(mask):
+         if not np.any(mask):
             msg = "All weights for filter %s are zero." % band
             msg += " The fitter is in a part of parameter space where the model"
             msg += " is not valid or there is no useful data."
             raise RuntimeError(msg)
          if self.model_in_mags:
-            f = power(10, -0.4*(mod - self.parent.data[band].filter.zp))
+            f = np.power(10, -0.4*(mod - self.parent.data[band].filter.zp))
             #ef = sqrt(power(err*mod/1.0857,2) + \
             #          power(self.parent.data[band].e_flux,2))
-            cov_f = power(f*err/1.0857,2)
+            cov_f = np.power(f*err/1.0857,2)
          else:
             f = mod
-            cov_f = power(err,2)
+            cov_f = np.power(err,2)
          m = mask*self.parent.data[band].mask
-         if len(shape(error[band])) == 1:
+         if len(np.shape(error[band])) == 1:
             # simple weight array
-            W = m*1.0/sqrt(error[band]+cov_f)
-            sum_w += sum(W)
+            W = m*1.0/np.sqrt(error[band]+cov_f)
+            sum_w += np.sum(W)
             resids_list.append((f - self.parent.data[band].flux)*W)
          else:
-            W = cholesky(inv(error[band]+diag(cov_f)))
-            W = W*m[newaxis,:]*m[:,newaxis]
-            sum_w += sum(diagonal(W))
-            resids_list.append(dot(W, f - self.parent.data[band].flux))
+            W = cholesky(inv(error[band]+np.diag(cov_f)))
+            W = W*m[np.newaxis,:]*m[:,np.newaxis]
+            sum_w += np.sum(np.diagonal(W))
+            resids_list.append(np.dot(W, f - self.parent.data[band].flux))
 
-      res = concatenate(resids_list)
+      res = np.concatenate(resids_list)
 
       # now apply any priors:  chi2 = chi2 + 2*ln(p) -N/2log(2pi)-sum(log(sigi))
       if debug:  print("  weighted resids = ", resids_list)
@@ -424,15 +425,16 @@ class EBV_model(model):
          cal = self.calibration
          self.Robs[band] = kcorr.R_obs(band, self.parent.z, 0, 0.01, 0,
                self.Rv_host[cal], self.parent.Rv_gal, self.parent.k_version,
-               redlaw=self.parent.redlaw, extrapolate=self.parent.k_extrapolate)
+               redlaw=self.parent.redlaw, redlaw_gal=self.parent.redlaw_gal,
+               extrapolate=self.parent.k_extrapolate)
       
    def guess(self, param):
       s = self.parent
       if param == 'Tmax':
          Tmaxs = []
          for f in s.data:
-            Tmaxs.append(s.data[f].MJD[argmin(s.data[f].mag)])
-         return median(Tmaxs)
+            Tmaxs.append(s.data[f].MJD[np.argmin(s.data[f].mag)])
+         return np.median(Tmaxs)
 
       if param == 'DM':
          # Quick DM based on Ho = 72
@@ -440,7 +442,7 @@ class EBV_model(model):
             print("Warning: SN CMB redshift is very small or negative. "\
                   "Setting initial distance to DM = 25.0")
             return 25.0
-         return 43.11 + 5*log10(s.zcmb)
+         return 43.11 + 5*np.log10(s.zcmb)
 
       if param == 'dm15':
          # choose just the average dm15:
@@ -450,8 +452,8 @@ class EBV_model(model):
 
    def __call__(self, band, t, extrap=False):
       self.template.mktemplate(self.dm15)
-      if len(shape(t)) == 0:
-         t = array([t])
+      if len(np.shape(t)) == 0:
+         t = np.array([t])
       t = t - self.Tmax
       rband = self.parent.restbands[band]
 
@@ -468,6 +470,7 @@ class EBV_model(model):
                self.parent.EBVgal, self.Rv_host[self.calibration], 
                self.parent.Rv_gal, self.parent.k_version, 
                redlaw=self.parent.redlaw,
+                     redlaw_gal=self.parent.redlaw_gal,
                extrapolate=self.parent.k_extrapolate)
          temp = temp + self.Robs[band]*(self.EBVhost + self.parent.EBVgal)
       else:
@@ -497,6 +500,7 @@ class EBV_model(model):
                Robs = kcorr.R_obs(band, self.parent.z, x0, self.EBVhost, 
                      self.parent.EBVgal, self.Rv_host[self.calibration], 
                      self.parent.Rv_gal, 'H3', redlaw=self.parent.redlaw,
+                     redlaw_gal=self.parent.redlaw_gal,
                      extrapolate=self.parent.k_extrapolate)
                mmax = mmax + Robs*(self.EBVhost + self.parent.EBVgal)
             else:
@@ -513,11 +517,13 @@ class EBV_model(model):
                                   self.parent.Rv_gal,
                                   self.parent.k_version,
                                   redlaw=self.parent.redlaw,
+                     redlaw_gal=self.parent.redlaw_gal,
                                   extrapolate=self.parent.k_extrapolate)
                EBV = max(self.EBVhost, 0.01)
                Robs = kcorr.R_obs(band, self.parent.z, 0, EBV,
                      0, self.Rv_host[self.calibration], self.parent.Rv_gal,
                      self.parent.k_version, redlaw=self.parent.redlaw,
+                     redlaw_gal=self.parent.redlaw_gal,
                      extrapolate=self.parent.k_extrapolate)
                mmax = mmax + Robs*self.EBVhost + R*self.parent.EBVgal
          Mmaxs.append(mmax)
@@ -556,29 +562,29 @@ class EBV_model(model):
          rb = self.parent.restbands[band]
          # make a call to get the weights
          mod,err,mask = self.__call__(band, self.parent.data[band].MJD)
-         weights.append(sum(where(mask, power(err,-2), 0)))
+         weights.append(np.sum(np.where(mask, np.power(err,-2), 0)))
          ddm15 = self.dm15 - 1.1
          Robs = kcorr.R_obs(band, self.parent.z, 0, self.EBVhost,
                self.parent.EBVgal, self.Rv_host[calibration], 
                self.parent.Rv_gal, self.parent.k_version, 
-               redlaw=self.parent.redlaw, 
+               redlaw=self.parent.redlaw, redlaw_gal=self.parent.redlaw_gal,
                extrapolate=self.parent.k_extrapolate)
          dRobs = Robs*self.dRv_host[calibration]/self.Rv_host[calibration]
-         syst_DM.append(power(ddm15*self.db[calibration],2)+\
-                        power(ddm15*self.dcolor_slopes[rb],2)+\
-                        power(self.EBVhost*dRobs, 2)+\
-                        power(self.dM0[calibration], 2)+\
-                        power(self.dcolors[rb]*Robs, 2) +\
-                        power(0.06*Robs, 2) +\
+         syst_DM.append(np.power(ddm15*self.db[calibration],2)+\
+                        np.power(ddm15*self.dcolor_slopes[rb],2)+\
+                        np.power(self.EBVhost*dRobs, 2)+\
+                        np.power(self.dM0[calibration], 2)+\
+                        np.power(self.dcolors[rb]*Robs, 2) +\
+                        np.power(0.06*Robs, 2) +\
                         #power(2.17*velerr/(3e5*self.parent.z),2) +\
-                        power(0.06,2))
-         syst_EBV.append(power(0.06*Robs,2))
-      syst_DM = array(syst_DM)
-      weights = array(weights)
-      systs['DM'] = sum(weights*syst_DM)/sum(weights)
+                        np.power(0.06,2))
+         syst_EBV.append(np.power(0.06*Robs,2))
+      syst_DM = np.array(syst_DM)
+      weights = np.array(weights)
+      systs['DM'] = np.sum(weights*syst_DM)/np.sum(weights)
       if include_Ho:
-         systs['DM'] += power(2.17*0.1,2)     # assume 10% error in Ho
-      systs['DM'] = sqrt(systs['DM'])
+         systs['DM'] += np.power(2.17*0.1,2)     # assume 10% error in Ho
+      systs['DM'] = np.sqrt(systs['DM'])
       systs['EBVhost'] = 0.06
       systs['dm15'] = 0.06
       systs['Tmax'] = 0.34
@@ -666,6 +672,7 @@ class EBV_model2(model):
          self.Robs[band] = kcorr.R_obs(band, self.parent.z, 0, 0.01, 0,
                self.Rv_host[self.calibration], self.parent.Rv_gal, 
                self.parent.k_version, redlaw=self.parent.redlaw,
+                     redlaw_gal=self.parent.redlaw_gal,
                extrapolate=self.parent.k_extrapolate)
       
    def guess(self, param):
@@ -673,8 +680,8 @@ class EBV_model2(model):
       if param == 'Tmax':
          Tmaxs = []
          for f in s.data:
-            Tmaxs.append(s.data[f].MJD[argmin(s.data[f].mag)])
-         return median(Tmaxs)
+            Tmaxs.append(s.data[f].MJD[np.argmin(s.data[f].mag)])
+         return np.median(Tmaxs)
 
       if param == 'DM':
          # Quick DM based on Ho = 72
@@ -682,7 +689,7 @@ class EBV_model2(model):
             print("Warning: SN CMB redshift is very small or negative. "\
                   "Setting initial distance to DM = 25.0")
             return 25.0
-         return 43.11 + 5*log10(s.zcmb)
+         return 43.11 + 5*np.log10(s.zcmb)
 
       if param == 'dm15':
          # choose just the average dm15:
@@ -710,7 +717,7 @@ class EBV_model2(model):
          self.Robs[band] = kcorr.R_obs(band, self.parent.z, t, self.EBVhost,
                self.parent.EBVgal, self.Rv_host[self.calibration], 
                self.parent.Rv_gal, self.parent.k_version,
-               redlaw=self.parent.redlaw, 
+               redlaw=self.parent.redlaw, redlaw_gal=self.parent.redlaw_gal,
                extrapolate=self.parent.k_extrapolate)
          temp = temp + self.Robs[band]*(self.EBVhost + self.parent.EBVgal)
       else:
@@ -740,6 +747,7 @@ class EBV_model2(model):
                Robs = kcorr.R_obs(band, self.parent.z, x0, self.EBVhost, 
                      self.parent.EBVgal, self.Rv_host[self.calibration], 
                      self.parent.Rv_gal, 'H3', redlaw=self.parent.redlaw,
+                     redlaw_gal=self.parent.redlaw_gal,
                      extrapolate=self.parent.k_extrapolate)
                mmax = mmax + Robs*(self.EBVhost + self.parent.EBVgal)
             else:
@@ -755,11 +763,13 @@ class EBV_model2(model):
                                   self.Rv_host[self.calibration], 
                                   self.parent.Rv_gal, self.parent.k_version,
                                   redlaw=self.parent.redlaw,
+                     redlaw_gal=self.parent.redlaw_gal,
                                   extrapolate=self.parent.k_extrapolate)
                EBV = max(self.EBVhost, 0.01)
                Robs = kcorr.R_obs(band, self.parent.z, 0, EBV,
                      0, self.Rv_host[self.calibration], self.parent.Rv_gal,
                      self.parent.k_version, redlaw=self.parent.redlaw,
+                     redlaw_gal=self.parent.redlaw_gal,
                      extrapolate=self.parent.k_extrapolate)
                mmax = mmax + Robs*self.EBVhost + R*self.parent.EBVgal
          Mmaxs.append(mmax)
@@ -792,7 +802,7 @@ class EBV_model2(model):
          rb = self.parent.restbands[band]
          # make a call to get the weights
          mod,err,mask = self.__call__(band, self.parent.data[band].MJD)
-         weights.append(sum(where(mask, power(err,-2), 0)))
+         weights.append(np.sum(np.where(mask, np.power(err,-2), 0)))
          if self.stype in ['st']:
             dst = self.st - 1.0
          else:
@@ -801,19 +811,20 @@ class EBV_model2(model):
                self.parent.EBVgal, self.Rv_host[calibration], 
                self.parent.Rv_gal, self.parent.k_version,
                redlaw=self.parent.redlaw,
+                     redlaw_gal=self.parent.redlaw_gal,
                extrapolate=self.parent.k_extrapolate)
          dRobs = Robs*self.eRv_host[calibration]/self.Rv_host[calibration]
-         syst_DM.append(power(dst*self.eb[calibration][rb],2)+\
-                        power(self.EBVhost*dRobs, 2)+\
-                        power(self.ea[calibration][rb], 2)+\
+         syst_DM.append(np.power(dst*self.eb[calibration][rb],2)+\
+                        np.power(self.EBVhost*dRobs, 2)+\
+                        np.power(self.ea[calibration][rb], 2)+\
                         #power(2.17*velerr/(3e5*self.parent.z),2) +\
-                        power(self.sigSN[calibration][rb],2))
-      syst_DM = array(syst_DM)
-      weights = array(weights)
-      systs['DM'] = sum(weights*syst_DM)/sum(weights)
+                        np.power(self.sigSN[calibration][rb],2))
+      syst_DM = np.array(syst_DM)
+      weights = np.array(weights)
+      systs['DM'] = np.sum(weights*syst_DM)/np.sum(weights)
       if include_Ho:
-         systs['DM'] += power(2.17*0.1,2)     # assume 10% error in Ho
-      systs['DM'] = sqrt(systs['DM'])
+         systs['DM'] += np.power(2.17*0.1,2)     # assume 10% error in Ho
+      systs['DM'] = np.sqrt(systs['DM'])
       systs['EBVhost'] = 0.06
       if self.stype == 'dm15':
          systs['dm15'] = 0.06
@@ -885,8 +896,8 @@ class max_model(model):
       if param == 'Tmax':
          Tmaxs = []
          for f in s.data:
-            Tmaxs.append(s.data[f].MJD[argmin(s.data[f].mag)])
-         return median(Tmaxs)
+            Tmaxs.append(s.data[f].MJD[np.argmin(s.data[f].mag)])
+         return np.median(Tmaxs)
 
       if param == 'st':
          return 1.0
@@ -901,7 +912,7 @@ class max_model(model):
             print("Warning:  SN CMB redshift is very small or negative. "\
                   "Setting initial {}max guess assuming DM = 25.0".format(filt))
             return M0 + 25.0
-         return 43.11 + 5*log10(s.zcmb) + M0
+         return 43.11 + 5*np.log10(s.zcmb) + M0
       
       if param == 'dm15':
          # choose just the average dm15:
@@ -967,9 +978,10 @@ class max_model(model):
                else:
                   R = self.parent.Robs[band]
             else:
-               R = kcorr.R_obs(band, self.parent.z, int(floor(x0)), 0.0, 
+               R = kcorr.R_obs(band, self.parent.z, int(np.floor(x0)), 0.0, 
                      self.parent.EBVgal, self.parent.Rv_gal, 
-                     version=self.parent.k_version, redlaw=self.parent.redlaw,
+                     version=self.parent.k_version,
+                     redlaw=self.parent.redlaw_gal,
                      extrapolate=self.parent.k_extrapolate)
 
             mmax = mmax + R*self.parent.EBVgal
@@ -981,29 +993,36 @@ class max_model(model):
    def _extra_error(self, parameter):
       '''Return the extra error we computed in the SNooPy paper when
       observations start after Tmax.'''
-      days = array([0.,5.,10.,15.,20.])
-      errors = {'dm15':array([0.00, 0.00, 0.03, 0.03, 0.03]),
-                'Tmax':array([0.07, 0.16, 0.21, 0.21, 0.46]),
-                'umax':array([0.00, 0.03, 0.05, 0.06, 0.06]),
-                'Bmax':array([0.00, 0.02, 0.02, 0.03, 0.04]),
-                'Vmax':array([0.00, 0.00, 0.01, 0.03, 0.03]),
-                'gmax':array([0.00, 0.01, 0.01, 0.01, 0.02]),
-                'rmax':array([0.00, 0.01, 0.02, 0.02, 0.02]),
-                'imax':array([0.01, 0.03, 0.05, 0.05, 0.05]),
-                'Ymax':array([0.01, 0.03, 0.03, 0.03, 0.04]),
-                'Jmax':array([0.02, 0.04, 0.05, 0.05, 0.05]),
-                'Hmax':array([0.01, 0.02, 0.02, 0.02, 0.02]),
-                'Kmax':array([0.00, 0.00, 0.00, 0.00, 0.00])}
+      days = np.array([0.,5.,10.,15.,20.])
+      errors = {'dm15':np.array([0.00, 0.00, 0.03, 0.03, 0.03]),
+                'Tmax':np.array([0.07, 0.16, 0.21, 0.21, 0.46]),
+                'umax':np.array([0.00, 0.03, 0.05, 0.06, 0.06]),
+                'Bmax':np.array([0.00, 0.02, 0.02, 0.03, 0.04]),
+                'Vmax':np.array([0.00, 0.00, 0.01, 0.03, 0.03]),
+                'gmax':np.array([0.00, 0.01, 0.01, 0.01, 0.02]),
+                'rmax':np.array([0.00, 0.01, 0.02, 0.02, 0.02]),
+                'imax':np.array([0.01, 0.03, 0.05, 0.05, 0.05]),
+                'Ymax':np.array([0.01, 0.03, 0.03, 0.03, 0.04]),
+                'Jmax':np.array([0.02, 0.04, 0.05, 0.05, 0.05]),
+                'Hmax':np.array([0.01, 0.02, 0.02, 0.02, 0.02]),
+                'Kmax':np.array([0.00, 0.00, 0.00, 0.00, 0.00])}
       errors['st'] = errors['dm15']*13.74/30    # conversion factor from dm15 to s
-      id = parameter.find('max')
-      if id > 0:
-         f = parameter[0:id]
-         for band in self.parent.data:
-            if self.parent.restbands[band] == f:
+      if parameter not in errors:
+         return 0
+      if self.Tmax is None:
+         return 0
+      if parameter.endswith('max') and parameter != 'Tmax':
+         f = parameter[:-3]
+         band = None
+         for b in self.parent.data:
+            if self.parent.restbands[b] == f:
+               band = b
                break
+         if band is None:
+            return 0
          t0 = (self.parent.data[band].MJD - self.Tmax).min()/(1+self.parent.z)
          if t0 < 0:  return 0
-         id = argmax(absolute(t0-days))
+         id = np.argmax(np.absolute(t0-days))
          return errors[parameter][id]
 
       t0s = []
@@ -1013,10 +1032,12 @@ class max_model(model):
             continue
          t0 = (self.parent.data[band].MJD - self.Tmax).min()/(1+self.parent.z)
          t0s.append(t0)
-      t0 = median(t0s)
+      if len(t0s) == 0:
+         return 0
+      t0 = np.median(t0s)
       if t0 < 0:
          return 0
-      id = argmax(absolute(t0 - days))
+      id = np.argmax(np.absolute(t0 - days))
       return errors[parameter][id]
 
    def systematics(self, calibration=1, include_Ho=False):
@@ -1097,17 +1118,21 @@ class max_model2(model):
 
       if param[0] == 'T':
          rfilt = param[1:].replace('max','')
+         filt = None
          for f in self._fbands:
             if self.parent.restbands[f] == rfilt:  filt=f
-         return s.data[filt].MJD[argmin(s.data[filt].mag)]
+         if filt is None:
+            raise ValueError("Cannot guess {}: no filter maps to rest band {}" \
+                  .format(param, rfilt))
+         return s.data[filt].MJD[np.argmin(s.data[filt].mag)]
 
       elif param.find('max') > 0:
          M0 = self.M0s[param.replace('max','')]
          if s.zcmb < 2e-4:
             print("Warning:  SN CMB redshift is very small or negative. "\
-                  "Setting initial {}max guess assuming DM = 25.0".format(filt))
+                  "Setting initial {}max guess assuming DM = 25.0".format(param.replace('max','')))
             return M0 + 25
-         return 43.11 + 5*log10(s.zcmb) + M0
+         return 43.11 + 5*np.log10(s.zcmb) + M0
       
       if param == 'dm15':
          # choose just the average dm15:
@@ -1162,9 +1187,10 @@ class max_model2(model):
                else:
                   R = self.parent.Robs[band]
             else:
-               R = kcorr.R_obs(band, self.parent.z, int(floor(x0)), 0.0, 
+               R = kcorr.R_obs(band, self.parent.z, int(np.floor(x0)), 0.0, 
                      self.parent.EBVgal, self.parent.Rv_gal, 
-                     version=self.parent.k_version, redlaw=self.parent.redlaw,
+                     version=self.parent.k_version,
+                     redlaw=self.parent.redlaw_gal,
                      extrapolate=self.parent.k_extrapolate)
 
             mmax = mmax + R*self.parent.EBVgal
@@ -1281,15 +1307,15 @@ class Rv_model(model):
       if param == 'Tmax':
          Tmaxs = []
          for f in s.data:
-            Tmaxs.append(s.data[f].MJD[argmin(s.data[f].mag)])
-         return median(Tmaxs)
+            Tmaxs.append(s.data[f].MJD[np.argmin(s.data[f].mag)])
+         return np.median(Tmaxs)
 
       if param == 'Bmax':
          if s.zcmb < 2e-4:
             print("Warning: SN CMB redshfit is very small or negative. "\
                   "Setting initial Bmax guess assuming DM=25.0")
             return self.M0['B'][self.calibration] + 25
-         return 43.11 + 5*log10(s.zcmb) + self.M0['B'][self.calibration]
+         return 43.11 + 5*np.log10(s.zcmb) + self.M0['B'][self.calibration]
 
       if param == 'dm15':
          # choose just the average dm15:
@@ -1356,6 +1382,7 @@ class Rv_model(model):
             Rhost = kcorr.R_obs(rband, 0, x0, self.EBVhost, 
                      self.parent.EBVgal, self.Rv_host, self.parent.Rv_gal, 'H3',
                      redlaw=self.parent.redlaw,
+                     redlaw_gal=self.parent.redlaw_gal,
                      extrapolate=self.parent.k_extrapolate)
             mmax = mmax + Rhost*self.EBVhost + Rmw*self.parent.EBVgal
          Mmaxs.append(mmax)
@@ -1471,7 +1498,7 @@ class color_model(model):
       self.nparameters['a'] = d['mean'][0:self.Nf]
       self.nparameters['b'] = d['mean'][self.Nf:self.Nf*2]
       self.nparameters['c'] = d['mean'][2*self.Nf:self.Nf*3]
-      self.enparameters['a'] = sqrt(d['vars'])
+      self.enparameters['a'] = np.sqrt(d['vars'])
       # Now we setup a covariance matrix for the data for each
       # band.  Right now, only including intrinsic color error
       self.covar = d['covar']
@@ -1487,7 +1514,7 @@ class color_model(model):
 
    def get_covar(self, band, t):
       '''Return a covariance matrix to handle systematics'''
-      cov_f = ones((t.shape[0],t.shape[0]))
+      cov_f = np.ones((t.shape[0],t.shape[0]))
       if band == "B":
          return cov_f*0
       #else:
@@ -1498,11 +1525,11 @@ class color_model(model):
       if param == 'Tmax':
          Tmaxs = []
          for f in s.data:
-            Tmaxs.append(s.data[f].MJD[argmin(s.data[f].mag)])
-         return median(Tmaxs)
+            Tmaxs.append(s.data[f].MJD[np.argmin(s.data[f].mag)])
+         return np.median(Tmaxs)
 
       if param == self.normfilter+'max':
-         return median([s.data[f].mag.min() for f in self.nf])
+         return np.median([s.data[f].mag.min() for f in self.nf])
 
       if param == 'st':
          # choose just the average dm15:
@@ -1519,16 +1546,16 @@ class color_model(model):
    def prior(self, param, value):
       if param == "Rv":
          if value < 0.5:
-            return -inf
+            return -np.inf
          if self.rvprior == 'uniform':
             return 0.0
          elif self.rvprior == 'bin':
-            id = searchsorted(self.bins, self.parameters['EBVhost'])
-            return gconst - 0.5*power(value-self.mu_i[id],2)*self.tau_i[id] + \
-                  0.5*log(self.tau_i[id])
+            id = np.searchsorted(self.bins, self.parameters['EBVhost'])
+            return gconst - 0.5*np.power(value-self.mu_i[id],2)*self.tau_i[id] + \
+                  0.5*np.log(self.tau_i[id])
          elif self.rvprior == 'mix':
-            p = sum(pi_i*sqrt(tau_i/2/pi)*exp(-0.5*power(value-self.mu_i,2)*self.tau_i))
-            return log(p)
+            p = np.sum(self.pi_i*np.sqrt(self.tau_i/2/np.pi)*np.exp(-0.5*np.power(value-self.mu_i,2)*self.tau_i))
+            return np.log(p)
 
       return 0.0
 
@@ -1606,10 +1633,10 @@ class color_model(model):
             RX = redlaw.R_lambda(rband, self.Rv, self.EBVhost, 
                                  redlaw=self.redlaw)
             mwRX = redlaw.R_lambda(rband, 3.1, self.parent.EBVgal, 
-                                   redlaw=self.redlaw)
+                                   redlaw=self.parent.redlaw_gal)
             mmax = mmax + RX*self.EBVhost +  mwRX*self.parent.EBVgal
          Mmaxs.append(mmax)
-         eMmaxs.append(sqrt(var))
+         eMmaxs.append(np.sqrt(var))
          rbands.append(rband)
       return(Tmaxs, Mmaxs, eMmaxs, rbands)
 
@@ -1666,12 +1693,12 @@ class SALT_model(model):
 
    def __call__(self, band, t, extrap=False):
       if self._tck is None or band not in self._tck:
-         return t*0, t*0+0.01, zeros(t.shape, dtype='bool')
+         return t*0, t*0+0.01, np.zeros(t.shape, dtype='bool')
 
       mag = splev(t, self._tck[band])
       emag = splev(t, self._etck[band])
-      mask = greater_equal(t, self._tck[band][0].min())*\
-             less_equal(t, self._tck[band][0].max())
+      mask = np.greater_equal(t, self._tck[band][0].min())*\
+             np.less_equal(t, self._tck[band][0].max())
       return(mag,emag,mask)
 
    def setup(self):
@@ -1707,21 +1734,23 @@ class SALT_model(model):
             #res = subprocess.run(['which','snfit'], stdout=subprocess.PIPE)
             if p.returncode != 0:
                raise ValueError('snfit is not in your PATH and bindir not set')
-            self.snfit = os.path.realpath(so)
-            self.bindir = os.dirname(self.snfit)
+            try:
+               self.snfit = os.path.realpath(so.strip())
+            except Exception:
+               self.snfit = os.path.realpath(str(so).strip())
+            self.bindir = os.path.dirname(self.snfit)
       self.snlc = os.path.join(self.bindir, 'snlc')
 
       # Check if we have stock or modified SALT
       datadir = os.path.realpath(os.path.join(self.bindir,'..','data'))
       fitmodel = os.path.join(datadir, 'fitmodel.card')
+      self.cspsalt = False
       if os.path.isfile(fitmodel):
-         fin = open(fitmodel, 'r')
-         cspsalt = False
-         for line in fin.readlines():
-            if line.find('@BD17-CSP') == 0:
-               cspsalt = True
-               break
-      self.cspsalt = cspsalt
+         with open(fitmodel, 'r') as fin:
+            for line in fin.readlines():
+               if line.find('@BD17-CSP') == 0:
+                  self.cspsalt = True
+                  break
 
    def _runsalt(self, verbose=False):
 
@@ -1787,7 +1816,7 @@ class SALT_model(model):
       for key in systs:
          systs[key] = 0.0
       cal = calibration
-      systs['DM'] = sqrt(self.e_MBs[cal]**2 + 
+      systs['DM'] = np.sqrt(self.e_MBs[cal]**2 + 
                          (self.parameters['X1']*self.e_alphas[cal])**2 +
                          (self.parameters['Color']*self.e_betas[cal])**2)
       return systs
@@ -1797,12 +1826,12 @@ class SALT_model(model):
       if param == 'Tmax':
          Tmaxs = []
          for f in s.data:
-            Tmaxs.append(s.data[f].MJD[argmin(s.data[f].mag)])
-         return median(Tmaxs)
+            Tmaxs.append(s.data[f].MJD[np.argmin(s.data[f].mag)])
+         return np.median(Tmaxs)
 
       if param == 'Bmax':
          fs = list(s.data.keys())
-         idx = argmin(absolute(array([fset[f].ave_wave for f in fs])-4378.))
+         idx = np.argmin(np.absolute(np.array([fset[f].ave_wave for f in fs])-4378.))
 
          return s.data[fs[idx]].mag.min()
 
@@ -1912,7 +1941,7 @@ class SALT_model(model):
          if 'X1' in self._free:
             self.C['DM']['Color'] += alpha*self.C['X1']['Color']
 
-      self.errors['DM'] = sqrt(var)
+      self.errors['DM'] = np.sqrt(var)
       self.C['DM']['X0'] = 0
       for key in self.C['DM']: self.C[key]['DM'] = self.C['DM'][key]
 
@@ -1921,7 +1950,7 @@ class SALT_model(model):
       self._etck = {}
       for f in self._lcs:
          MJD = self._lcs[f][0]
-         mags = -2.5*log10(self._lcs[f][1]) + self._lcs[f][3]
+         mags = -2.5*np.log10(self._lcs[f][1]) + self._lcs[f][3]
          emags = 1.0857*self._lcs[f][2]/self._lcs[f][1]
          self._tck[f] = splrep(MJD, mags, k=1, s=0)
          self._etck[f] = splrep(MJD, emags, k=1, s=0)
@@ -1951,7 +1980,8 @@ class MLCS_model(model):
       self.idl = idl
       self.spec_sample = spec_sample
       self.vector = vector
-      self.prior = prior
+      self.mlcs_prior = prior   # do NOT name this 'prior': it would shadow the
+                                # model.prior(param,value) method used by MCMC
       self.parameters = {'del':None, 'av0':None, 'DM':None, 'Tmax':None, 
             'Rv':None, 'Vmax':None, 'p0':None}
       self.errors = {'del':0, 'av0':0, 'DM':0, 'Tmax':0, 'Rv':0, 'Vmax':0,
@@ -1961,12 +1991,12 @@ class MLCS_model(model):
 
    def __call__(self, band, t, extrap=False):
       if self._tck is None or band not in self._tck:
-         return t*0, t*0+0.01, zeros(t.shape, dtype='bool')
+         return t*0, t*0+0.01, np.zeros(t.shape, dtype='bool')
 
       mag = splev(t, self._tck[band])
       emag = splev(t, self._etck[band])
-      mask = greater_equal(t, self._tck[band][0].min())*\
-             less_equal(t, self._tck[band][0].max())
+      mask = np.greater_equal(t, self._tck[band][0].min())*\
+             np.less_equal(t, self._tck[band][0].max())
       return(mag,emag,mask)
 
    def setup(self):
@@ -2012,7 +2042,7 @@ class MLCS_model(model):
          print('Updating {}'.format(self.sninfo))
          print('Writing {}'.format(self.outfile))
       self._trans = self.parent.to_mlcs(self._fbands, 
-            sninfo=self.sninfo, outfile=self.outfile, prior=self.prior,
+            sninfo=self.sninfo, outfile=self.outfile, prior=self.mlcs_prior,
             vector=self.vector, spec_sample=self.spec_sample, stock=self.stock)
 
       # Clear out any previous fits
@@ -2030,9 +2060,13 @@ class MLCS_model(model):
       #res = subprocess.run([self.idl], stdout=subprocess.PIPE, 
       #      stderr=subprocess.PIPE, input=bytes(inp, 'utf-8'))
       if six.PY3: inp = bytes(inp, 'utf-8')
-      p = subprocess.Popen([self.idl], stdout=subprocess.PIPE,
-            stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-      so,se = p.communicate(input=inp)
+      try:
+         p = subprocess.Popen([self.idl], stdout=subprocess.PIPE,
+               stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+         so,se = p.communicate(input=inp)
+      except Exception:
+         os.chdir(self.curdir)
+         raise
 
       if p.returncode != 0:
          print("Error: IDL returned with status {}".format(p.returncode))
@@ -2090,7 +2124,7 @@ class MLCS_model(model):
 
       # For now, take the "last" iteration
       iters = list(self._results.keys())
-      iters.sort()
+      iters.sort(key=lambda s: int(s.replace('iter','')) if s.replace('iter','').isdigit() else 0)
       it = iters[-1]
 
       self.chisquare = self._stats[it]['chisq']

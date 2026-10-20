@@ -1,4 +1,5 @@
 import pytest
+import os
 from snpy import get_sn
 from snpy.utils import fit1dcurve
 
@@ -17,9 +18,9 @@ elif fit1dcurve.gp == 'sklearn':
    allresults['gp'] = 827.202
 
 @pytest.fixture
-def snobj():
+def snobj(datadir):
    import snpy
-   snobj = snpy.get_sn('SN2006ax.txt')
+   snobj = snpy.get_sn(os.path.join(datadir, 'SN2006ax.txt'))
    return snobj
 
 funcs = fit1dcurve.functions

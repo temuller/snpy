@@ -4,7 +4,7 @@ but providing a consistent API for evalutation and computing derivatives,
 extrama, etc.'''
 
 from __future__ import print_function
-import numpy as num
+import numpy as np
 from snpy.utils import fit_spline
 from scipy.interpolate import splrep,splev,sproot
 from scipy.optimize import brentq, newton
@@ -81,23 +81,23 @@ def regularize(x, y, ey):
    # x-values need to be strictly ascending.
    if x.shape[0] < 2:
       return x,y,ey
-   sids = num.argsort(x)
+   sids = np.argsort(x)
    x = x[sids]
    y = y[sids]
    ey = ey[sids]
    
    # here's some Numeric magic.  first, find where we have repeating x-values
-   Nmatrix = num.equal(x[:,num.newaxis], x[num.newaxis,:])
-   val_matrix = y[:,num.newaxis]*Nmatrix
-   e_matrix = ey[:,num.newaxis]*Nmatrix
+   Nmatrix = np.equal(x[:,np.newaxis], x[np.newaxis,:])
+   val_matrix = y[:,np.newaxis]*Nmatrix
+   e_matrix = ey[:,np.newaxis]*Nmatrix
    
-   average = num.sum(val_matrix, axis=0)/sum(Nmatrix)
-   e_average = num.sum(e_matrix, axis=0)/sum(Nmatrix)
+   average = np.sum(val_matrix, axis=0)/sum(Nmatrix)
+   e_average = np.sum(e_matrix, axis=0)/sum(Nmatrix)
    
    # at this point, average is the original data, but with repeating data points
    # replaced with their average.  Now, we just pick out the unique x's and
    # the first of any repeating points:
-   gids = num.concatenate([[True], num.greater(x[1:] - x[:-1], 0.)])
+   gids = np.concatenate([[True], np.greater(x[1:] - x[:-1], 0.)])
    x = x[gids]
    y = average[gids]
    ey = e_average[gids]
@@ -121,9 +121,9 @@ class oneDcurve:
          args (optional args): extra arguments are handled by each subclass
       '''
 
-      x = num.atleast_1d(x)
-      y = num.atleast_1d(y)
-      ey = num.atleast_1d(ey)
+      x = np.atleast_1d(x)
+      y = np.atleast_1d(y)
+      ey = np.atleast_1d(ey)
 
       if not len(x.shape) == 1:
          raise ValueError("x, y, ey must be 1D arrays")
@@ -135,9 +135,9 @@ class oneDcurve:
       self.xdata = x
       self.ydata = y
       self.eydata = ey
-      self.vardata = num.power(ey,2)
+      self.vardata = np.power(ey,2)
       if mask is None:
-         self.mask = num.ones(x.shape, dtype=bool)  # mask for the data
+         self.mask = np.ones(x.shape, dtype=bool)  # mask for the data
       else:
          self.mask = mask
 
@@ -184,23 +184,23 @@ class oneDcurve:
       is strinctly increasing, elminiating repeated values by an
       average.'''
       # x-values need to be strictly ascending.
-      sids = num.argsort(self.x)
+      sids = np.argsort(self.x)
       x = self.x[sids]
       y = self.y[sids]
       ey = self.ey[sids]
    
       # here's some Numeric magic.  first, find where we have repeating x-values
-      Nmatrix = num.equal(x[:,num.newaxis], x[num.newaxis,:])
-      val_matrix = y[:,num.newaxis]*Nmatrix
-      e_matrix = ey[:,num.newaxis]*Nmatrix
+      Nmatrix = np.equal(x[:,np.newaxis], x[np.newaxis,:])
+      val_matrix = y[:,np.newaxis]*Nmatrix
+      e_matrix = ey[:,np.newaxis]*Nmatrix
    
-      average = num.sum(val_matrix, axis=0)/sum(Nmatrix)
-      e_average = num.sum(e_matrix, axis=0)/sum(Nmatrix)
+      average = np.sum(val_matrix, axis=0)/sum(Nmatrix)
+      e_average = np.sum(e_matrix, axis=0)/sum(Nmatrix)
       
       # at this point, average is the original data, but with repeating data points
       # replaced with their average.  Now, we just pick out the unique x's and
       # the first of any repeating points:
-      gids = num.concatenate([[True], num.greater(x[1:] - x[:-1], 0.)])
+      gids = np.concatenate([[True], np.greater(x[1:] - x[:-1], 0.)])
       x = x[gids]
       y = average[gids]
       ey = e_average[gids]
@@ -220,7 +220,7 @@ class oneDcurve:
       Effects:
          self.mask is updated
       '''
-      id = num.argmin(num.power(self.x-x,2) + num.power(self.y-y,2))
+      id = np.argmin(np.power(self.x-x,2) + np.power(self.y-y,2))
       self.mask[id] = False
       self.setup = False
 
@@ -252,13 +252,13 @@ class oneDcurve:
       Effects:
          self.mask is updated
       '''
-      absdev = num.aboslute(self.residuals())
+      absdev = np.aboslute(self.residuals())
       if absclip is not None:
-         self.mask *= num.greater(absdev, absclip)
+         self.mask *= np.greater(absdev, absclip)
          self.setup = False
       elif sigclip is not None:
-         sigma = 1.49*num.median(absdev)
-         self.mask *= num.greater(absdev, sigclip*sigma)
+         sigma = 1.49*np.median(absdev)
+         self.mask *= np.greater(absdev, sigclip*sigma)
          self.setup = False
 
    def __call__(self, x):
@@ -285,8 +285,8 @@ class oneDcurve:
       Returns:
          float array or scalar:  the error (type matches input x)
       '''
-      scalar = (len(num.shape(x)) == 0)
-      x = num.atleast_1d(x)
+      scalar = (len(np.shape(x)) == 0)
+      x = np.atleast_1d(x)
       
       if len(self.realizations) < N:
          for i in range(N-len(self.realizations)):
@@ -297,8 +297,8 @@ class oneDcurve:
          self.realization = self.realizations[i]
          earr.append(self.__call__(x)[0])
       self.realization = None
-      earr = num.array(earr)
-      err = num.std(earr, axis=0)
+      earr = np.array(earr)
+      err = np.std(earr, axis=0)
       if scalar:
          return err[0]
       else:
@@ -329,11 +329,11 @@ class oneDcurve:
 
    def rms(self):
       '''Returns RMS of residuals for current parameters.'''
-      return num.sqrt(num.mean(num.power(self.residuals(),2)))
+      return np.sqrt(np.mean(np.power(self.residuals(),2)))
 
    def chisquare(self):
       '''Returns the chi-square statistic for current parameters.'''
-      return num.sum(num.power(self.residuals(),2)*num.power(self.var,-1))
+      return np.sum(np.power(self.residuals(),2)*np.power(self.var,-1))
 
    def rchisquare(self):
       '''Returns the reduced chi-square statistic for current parameters.'''
@@ -342,7 +342,7 @@ class oneDcurve:
    def DW(self):
       '''Returns the Durvin-Watson statistic for current parameters.'''
       r = self.residuals()
-      return num.sum(num.power(r[1:] - r[:-1],2))/num.sum(num.power(r,2))
+      return np.sum(np.power(r[1:] - r[:-1],2))/np.sum(np.power(r,2))
 
    def deriv(self, x, n=1):
       '''Returns the nth derivative of the function at x.
@@ -454,14 +454,14 @@ if polynomial is not None:
 
       def _setup(self):
          '''Given the current set of params, setup the interpolator.'''
-         mask = self.mask*num.greater_equal(self.xdata, self.xmin)*\
-               num.less_equal(self.xdata, self.xmax)
+         mask = self.mask*np.greater_equal(self.xdata, self.xmin)*\
+               np.less_equal(self.xdata, self.xmax)
    
          if self.type not in polytypes:
             raise ValueError("Error:  the polynomial type must be one of " +\
                   ",".join(list(polytypes.keys())))
          self.poly = polytypes[self.type].fit(self.xdata[mask], self.ydata[mask],
-               deg=self.n, w=num.power(self.eydata[mask],-1))
+               deg=self.n, w=np.power(self.eydata[mask],-1))
          self.setup = True
          self.realization = None
    
@@ -475,15 +475,15 @@ if polynomial is not None:
             res = self.realization(x)
          else:
             res = self.poly(x)
-         return res, num.greater_equal(x, self.poly.domain[0])*\
-               num.less_equal(x, self.poly.domain[1])
+         return res, np.greater_equal(x, self.poly.domain[0])*\
+               np.less_equal(x, self.poly.domain[1])
          
       def draw(self):
          '''Generate a random realization of the spline, based on the data.'''
-         y_draw = num.random.normal(self.y, self.ey)
+         y_draw = np.random.normal(self.y, self.ey)
          self.realizations.append(\
                polytypes[self.type].fit(self.x, y_draw, deg=self.n,
-               w=num.power(self.ey,-1)))
+               w=np.power(self.ey,-1)))
          if len(self.realizations) > self.num_real_keep:
             self.realizations = self.realizations[1:]
          self.realization = self.realizations[-1]
@@ -526,16 +526,16 @@ if polynomial is not None:
          d2 = poly.deriv(m=2)
          roots = d1.roots()
          # Roots can be complex.  Want only the real ones
-         gids = num.iscomplex(roots)
-         roots = num.real(roots[num.logical_not(gids)])
-         gids = num.greater_equal(roots, xmin)*num.less_equal(roots, xmax)
+         gids = np.iscomplex(roots)
+         roots = np.real(roots[np.logical_not(gids)])
+         gids = np.greater_equal(roots, xmin)*np.less_equal(roots, xmax)
          roots = roots[gids]
          if len(roots) == 0:
-            return num.array([]), num.array([]), num.array([])
+            return np.array([]), np.array([]), np.array([])
          vals = self.__call__(roots)
          curvs = d2(roots)
-         curvs = num.where(curvs < 0, -1, curvs)
-         curvs = num.where(curvs > 0, 1, curvs)
+         curvs = np.where(curvs < 0, -1, curvs)
+         curvs = np.where(curvs > 0, 1, curvs)
    
          return roots,vals[0],curvs
    
@@ -547,10 +547,10 @@ if polynomial is not None:
             poly = self.poly - y
          # Roots can be complex.  Want only real ones
          roots = poly.roots()
-         gids = num.isreal(roots)
-         roots = num.real(roots[gids])
-         gids = num.greater_equal(roots, self.poly.domain[0])*\
-               num.less_equal(roots, self.poly.domain[1])
+         gids = np.isreal(roots)
+         roots = np.real(roots[gids])
+         gids = np.greater_equal(roots, self.poly.domain[0])*\
+               np.less_equal(roots, self.poly.domain[1])
          roots = roots[gids]
          if len(roots) == 0:
             return None
@@ -625,19 +625,19 @@ if spline2 is not None:
          if not self.setup:
             self._setup()
    
-         if len(num.shape(x)) < 1:
+         if len(np.shape(x)) < 1:
             scalar = True
          else:
             scalar = False
    
-         x = num.atleast_1d(x)
+         x = np.atleast_1d(x)
          if self.realization:
-            evm = num.atleast_1d(evalsp(x, self.realization))
-            mask = num.greater_equal(x, self.realization[0][0])*\
-                   num.less_equal(x,self.realization[0][-1])
+            evm = np.atleast_1d(evalsp(x, self.realization))
+            mask = np.greater_equal(x, self.realization[0][0])*\
+                   np.less_equal(x,self.realization[0][-1])
          else:
-            evm = num.atleast_1d(evalsp(x, self.tck))
-            mask = num.greater_equal(x, self.tck[0][0])*num.less_equal(x,self.tck[0][-1])
+            evm = np.atleast_1d(evalsp(x, self.tck))
+            mask = np.greater_equal(x, self.tck[0][0])*np.less_equal(x,self.tck[0][-1])
    
          if scalar:
             return evm[0],mask[0]
@@ -649,7 +649,7 @@ if spline2 is not None:
 
       def draw(self):
          '''Generate a random realization of the spline, based on the data.'''
-         y_draw = num.random.normal(self.y, self.ey)
+         y_draw = np.random.normal(self.y, self.ey)
          self.realizations.append(\
                spline2(self.x, y_draw, w=1.0/self.ey, **self.pars))
          if len(self.realizations) > self.num_real_keep:
@@ -669,15 +669,15 @@ if spline2 is not None:
             tck = self.realization
          else:
             tck = self.tck
-         if len(num.shape(x)) < 1:
+         if len(np.shape(x)) < 1:
             scalar = True
          else:
             scalar = False
-         x = num.atleast_1d(x)
+         x = np.atleast_1d(x)
          if self.realization:
-            evm = num.atleast_1d(evalsp(x, self.realization, deriv=n))
+            evm = np.atleast_1d(evalsp(x, self.realization, deriv=n))
          else:
-            evm = num.atleast_1d(evalsp(x, self.tck, deriv=n))
+            evm = np.atleast_1d(evalsp(x, self.tck, deriv=n))
    
          if scalar:
             return evm[0]
@@ -694,11 +694,11 @@ if spline2 is not None:
             vals = eval_extrema(self.realization)
          else:
             vals = eval_extrema(self.tck)
-         gids = num.ones(vals[0].shape, dtype=bool)
+         gids = np.ones(vals[0].shape, dtype=bool)
          if xmin is not None:
-            gids = gids*num.greater_equal(vals[0],xmin)
+            gids = gids*np.greater_equal(vals[0],xmin)
          if xmax is not None:
-            gids = gids*num.less_equal(vals[0],xmax)
+            gids = gids*np.less_equal(vals[0],xmax)
          return (vals[0][gids], vals[1][gids], vals[2][gids])
    
       def intercept(self, y):
@@ -751,23 +751,23 @@ class Spline(oneDcurve):
 
    def _regularize(self):
       # x-values need to be strictly ascending.
-      sids = num.argsort(self.x)
+      sids = np.argsort(self.x)
       self.x = self.x[sids]
       self.y = self.y[sids]
       self.ey = self.ey[sids]
 
       # here's some Numeric magic.  first, find where we have repeating x-values
-      Nmatrix = num.equal(self.x[:,num.newaxis], self.x[num.newaxis,:])
-      val_matrix = self.y[:,num.newaxis]*Nmatrix
-      e_matrix = self.ey[:,num.newaxis]*Nmatrix
+      Nmatrix = np.equal(self.x[:,np.newaxis], self.x[np.newaxis,:])
+      val_matrix = self.y[:,np.newaxis]*Nmatrix
+      e_matrix = self.ey[:,np.newaxis]*Nmatrix
  
-      average = num.sum(val_matrix, axis=0)/sum(Nmatrix)
-      e_average = num.sum(e_matrix, axis=0)/sum(Nmatrix)
+      average = np.sum(val_matrix, axis=0)/sum(Nmatrix)
+      e_average = np.sum(e_matrix, axis=0)/sum(Nmatrix)
       
       # at this point, average is the original data, but with repeating data points
       # replaced with their average.  Now, we just pick out the unique x's and
       # the first of any repeating points:
-      gids = num.concatenate([[True], num.greater(self.x[1:] - self.x[:-1], 0.)])
+      gids = np.concatenate([[True], np.greater(self.x[1:] - self.x[:-1], 0.)])
       
       self.x = self.x[gids]
       self.y = average[gids]
@@ -777,7 +777,7 @@ class Spline(oneDcurve):
       '''Given the current set of params, setup the interpolator.'''
       self.tck = splrep(self.x, self.y, 1.0/self.ey, **self.pars)
       # Check for NaN's in the tck.
-      if num.any(num.isnan(self.tck[1])):
+      if np.any(np.isnan(self.tck[1])):
          raise ValueError("The Spline is invalid.  It is possible the data are too noisy, or smoothing is too low.  Try increasing 's' or fixing your errors")
       self.setup = True
       self.realization = None
@@ -788,8 +788,8 @@ class Spline(oneDcurve):
       if x <= self.tck[0][3] or x >= self.tck[0][-3]:
          return
       old_knots = self.tck[0][4:-4]
-      knots = num.concatenate([[x],old_knots])
-      knots = num.sort(knots)
+      knots = np.concatenate([[x],old_knots])
+      knots = np.sort(knots)
 
       self.pars['task'] = -1
       self.pars['t'] = knots
@@ -805,13 +805,13 @@ class Spline(oneDcurve):
       '''Delete knot closest to x.  The task parameter is automatically set
       to -1 as a result.'''
       old_knots = self.tck[0][4:-4]
-      ds = num.absolute(old_knots - x)
-      id = num.argmin(ds)
+      ds = np.absolute(old_knots - x)
+      id = np.argmin(ds)
       l = old_knots.tolist()
       del l[id]
 
       self.pars['task'] = -1
-      self.pars['t'] = num.array(l)
+      self.pars['t'] = np.array(l)
       try:
          self._setup()
       except:
@@ -824,12 +824,12 @@ class Spline(oneDcurve):
       '''Move knot closest to x to new location xnew.  The task parameter is
       automatically set to -1 as a result.'''
       old_knots = self.tck[0][4:-4]
-      ds = num.absolute(old_knots - x)
-      id = num.argmin(ds)
+      ds = np.absolute(old_knots - x)
+      id = np.argmin(ds)
       self.pars['task'] = -1
       self.pars['t'] = old_knots*1
       self.pars['t'][id] = xnew
-      self.pars['t'] = num.sort(self.pars['t'])
+      self.pars['t'] = np.sort(self.pars['t'])
       try:
          self._setup()
       except:
@@ -843,19 +843,19 @@ class Spline(oneDcurve):
       if not self.setup:
          self._setup()
 
-      if len(num.shape(x)) < 1:
+      if len(np.shape(x)) < 1:
          scalar = True
       else:
          scalar = False
 
-      x = num.atleast_1d(x)
+      x = np.atleast_1d(x)
       if self.realization:
-         evm = num.atleast_1d(splev(x, self.realization))
-         mask = num.greater_equal(x, self.realization[0][0])*\
-                num.less_equal(x,self.realization[0][-1])
+         evm = np.atleast_1d(splev(x, self.realization))
+         mask = np.greater_equal(x, self.realization[0][0])*\
+                np.less_equal(x,self.realization[0][-1])
       else:
-         evm = num.atleast_1d(splev(x, self.tck))
-         mask = num.greater_equal(x, self.tck[0][0])*num.less_equal(x,self.tck[0][-1])
+         evm = np.atleast_1d(splev(x, self.tck))
+         mask = np.greater_equal(x, self.tck[0][0])*np.less_equal(x,self.tck[0][-1])
 
       if scalar:
          return evm[0],mask[0]
@@ -868,7 +868,7 @@ class Spline(oneDcurve):
    def draw(self):
       '''Generate a random realization of the spline, based on the data.'''
       k = self.tck[2]
-      y_draw = num.random.normal(self.y, self.ey)
+      y_draw = np.random.normal(self.y, self.ey)
       args = self.pars.copy()
       args['task'] = -1
       args['t'] = self.tck[0][k+1:-(k+1)]
@@ -890,15 +890,15 @@ class Spline(oneDcurve):
          tck = self.realization
       else:
          tck = self.tck
-      if len(num.shape(x)) < 1:
+      if len(np.shape(x)) < 1:
          scalar = True
       else:
          scalar = False
-      x = num.atleast_1d(x)
+      x = np.atleast_1d(x)
       if self.realization:
-         evm = num.atleast_1d(splev(x, self.realization, der=n))
+         evm = np.atleast_1d(splev(x, self.realization, der=n))
       else:
-         evm = num.atleast_1d(splev(x, self.tck, der=n))
+         evm = np.atleast_1d(splev(x, self.tck, der=n))
 
       if scalar:
          return evm[0]
@@ -921,8 +921,8 @@ class Spline(oneDcurve):
       x0s = t[k:-k]
       xs = []
       for i in range(len(x0s)-1):
-         xs.append(num.arange(x0s[i],x0s[i+1],(x0s[i+1]-x0s[i])/(k+1)))
-      xs = num.concatenate(xs)
+         xs.append(np.arange(x0s[i],x0s[i+1],(x0s[i+1]-x0s[i])/(k+1)))
+      xs = np.concatenate(xs)
       yps = self.deriv(xs, n=1)
       # now find the roots of the 1st derivative
       tck2 = splrep(xs, yps, k=3, s=0)
@@ -932,9 +932,9 @@ class Spline(oneDcurve):
       for root in roots:
          vals.append(self.__call__(root)[0])
          curvs.append(self.deriv(root, n=2))
-      gids = num.greater_equal(roots,xmin)*num.less_equal(roots,xmax)
-      curvs = num.where(num.equal(curvs,0), 0, curvs/num.absolute(curvs))
-      return roots[gids],num.array(vals)[gids],num.array(curvs)[gids]
+      gids = np.greater_equal(roots,xmin)*np.less_equal(roots,xmax)
+      curvs = np.where(np.equal(curvs,0), 0, curvs/np.absolute(curvs))
+      return roots[gids],np.array(vals)[gids],np.array(curvs)[gids]
 
    def intercept(self, y):
       '''Find the value of x for which the interpolator goes through [y]'''
@@ -946,7 +946,7 @@ class Spline(oneDcurve):
       else:
          tck = self.tck[0][::],self.tck[1]-y,self.tck[2]
       roots = sproot(tck)
-      gids = num.greater_equal(roots,tck[0][0])*num.less_equal(roots,tck[0][-1])
+      gids = np.greater_equal(roots,tck[0][0])*np.less_equal(roots,tck[0][-1])
 
       return sproot(tck)
 
@@ -972,10 +972,10 @@ if gp == 'pymc':
          if 'mean' in args:
             self.mean = args['mean']
          else:
-            self.mean = lambda x:  x*0 + num.median(self.y)
+            self.mean = lambda x:  x*0 + np.median(self.y)
    
          # Make sure the data conform to the spine requirements
-         self.median = num.median(self.y)
+         self.median = np.median(self.y)
          self._setup()
          self.realization = None
    
@@ -1012,7 +1012,7 @@ if gp == 'pymc':
             self.diff_degree = 3
    
          if self.amp is None:
-            self.amp = num.std(y - self.mean(x))
+            self.amp = np.std(y - self.mean(x))
    
          if self.scale is None:
             #self.scale = (self.x.max() - self.x.min())/2
@@ -1023,7 +1023,7 @@ if gp == 'pymc':
          self.C = GP.Covariance(GP.matern.euclidean, diff_degree=self.diff_degree,
                            amp=self.amp, scale=self.scale)
    
-         GP.observe(self.M, self.C, obs_mesh=x, obs_vals=y, obs_V=num.power(dy,2))
+         GP.observe(self.M, self.C, obs_mesh=x, obs_vals=y, obs_V=np.power(dy,2))
          self.setup = True
          self.realization = None
    
@@ -1034,12 +1034,12 @@ if gp == 'pymc':
          if not self.setup:
             self._setup()
    
-         if len(num.shape(x)) < 1:
+         if len(np.shape(x)) < 1:
             scalar = True
          else:
             scalar = False
    
-         x = num.atleast_1d(x)
+         x = np.atleast_1d(x)
          if self.realization is not None:
             res = self.realization(x)
          else:
@@ -1048,8 +1048,8 @@ if gp == 'pymc':
          if scalar:
             return res[0],self.x.min() <= x[0] <= self.x.max()
          else:
-            return res,num.greater_equal(x, self.x.min())*\
-                  num.less_equal(x, self.x.max())
+            return res,np.greater_equal(x, self.x.min())*\
+                  np.less_equal(x, self.x.max())
          
       def domain(self):
          return (self.x.min(),self.x.max())
@@ -1059,13 +1059,13 @@ if gp == 'pymc':
          if not self.setup:
             self._setup()
    
-         if len(num.shape(x)) < 1:
+         if len(np.shape(x)) < 1:
             scalar = True
          else:
             scalar = False
    
-         x = num.atleast_1d(x)
-         res = num.sqrt(self.C(x))
+         x = np.atleast_1d(x)
+         res = np.sqrt(self.C(x))
    
          if scalar:
             return res[0]
@@ -1089,11 +1089,11 @@ if gp == 'pymc':
    
       def deriv(self, x, n=1):
          '''Returns the nth derivative of the function at x.'''
-         if len(num.shape(x)) < 1:
+         if len(np.shape(x)) < 1:
             scalar = True
          else:
             scalar = False
-         xs = num.atleast_1d(x)
+         xs = np.atleast_1d(x)
          f = lambda x:  self.__call__(x)[0]
          res = deriv(f, xs, dx=self.scale/100., n=n)
    
@@ -1113,18 +1113,18 @@ if gp == 'pymc':
          if xmin is None:  xmin = self.x.min()
          if xmax is None:  xmax = self.x.max()
          dx = min(self.scale*1.0/20, (xmax-xmin)/5.0)
-         xs = num.arange(xmin, xmax, dx)
+         xs = np.arange(xmin, xmax, dx)
          #f = lambda x: self.__call__(x)[0]
          dys = self.deriv(xs, n=1)
          #dys = num.diff(self.__call__(xs)[0])
          #adys = (dys[1:] + dys[:-1])/2
          #dys = num.concatenate([[dys[0]],adys,[dys[-1]]])
-         pids = num.greater(dys, 0)
+         pids = np.greater(dys, 0)
          # Find indeces where go from True->False or False->True:  XOR
-         inds = num.nonzero(num.logical_xor(pids[1:],pids[:-1]))[0]
+         inds = np.nonzero(np.logical_xor(pids[1:],pids[:-1]))[0]
    
          if len(inds) == 0:
-            return (num.array([]), num.array([]), num.array([]))
+            return (np.array([]), np.array([]), np.array([]))
          ret = []
          for i in range(len(inds)):
             try:
@@ -1133,31 +1133,31 @@ if gp == 'pymc':
             except:
                continue
          if len(ret) == 0:
-            return (num.array([]), num.array([]), num.array([]))
-         ret = num.array(ret)
+            return (np.array([]), np.array([]), np.array([]))
+         ret = np.array(ret)
          vals = self.__call__(ret)[0]
          curvs = self.deriv(ret, n=2)
-         curvs = num.where(curvs > 0, 1, curvs)
-         curvs = num.where(curvs < 0, -1, curvs)
+         curvs = np.where(curvs > 0, 1, curvs)
+         curvs = np.where(curvs < 0, -1, curvs)
    
          return ret,vals,curvs
    
       def intercept(self, y):
          '''Find the value of x for which the interpolator goes through [y]'''
    
-         xs = num.arange(self.x.min(), self.x.max(), self.scale/10)
+         xs = np.arange(self.x.min(), self.x.max(), self.scale/10)
          f = lambda x:  self.__call__(x)[0] - y
          ys = f(xs)
    
-         pids = num.greater(ys, 0)
-         if num.all(pids) or num.all(-pids):
+         pids = np.greater(ys, 0)
+         if np.all(pids) or np.all(-pids):
             return None
    
          ret = []
-         inds = num.nonzero(pids[1:] - pids[:-1])[0]
+         inds = np.nonzero(pids[1:] - pids[:-1])[0]
          for i in range(len(inds)):
             ret.append(brentq(f, xs[inds[i]], xs[inds[i]+1]))
-         ret = num.array(ret)
+         ret = np.array(ret)
          return ret
    functions['gp'] = (GaussianProcess, "Gaussian Process (pymc.GP)")
 elif gp == 'sklearn':
@@ -1180,10 +1180,10 @@ elif gp == 'sklearn':
          if 'mean' in args:
             self.mean = args['mean']
          else:
-            self.mean = lambda x:  x*0 + num.median(self.y)
+            self.mean = lambda x:  x*0 + np.median(self.y)
    
          # Make sure the data conform to the spine requirements
-         self.median = num.median(self.y)
+         self.median = np.median(self.y)
          self._setup()
          self.realization = None
    
@@ -1209,7 +1209,7 @@ elif gp == 'sklearn':
             self.diff_degree = 2
    
          if self.amp is None:
-            self.amp = num.std(y - self.mean(x))
+            self.amp = np.std(y - self.mean(x))
    
          if self.scale is None:
             #self.scale = (self.x.max() - self.x.min())/2
@@ -1219,7 +1219,7 @@ elif gp == 'sklearn':
                Matern(length_scale=self.scale, nu=self.diff_degree+0.5,
                      length_scale_bounds='fixed')
          Y = y - self.mean(x)
-         X = num.array([x]).T
+         X = np.array([x]).T
          self.gpr = GaussianProcessRegressor(kernel=self.kernel, 
                alpha=dy*dy).fit(X,Y)
          self.setup = True
@@ -1232,12 +1232,12 @@ elif gp == 'sklearn':
          if not self.setup:
             self._setup()
    
-         if len(num.shape(x)) < 1:
+         if len(np.shape(x)) < 1:
             scalar = True
          else:
             scalar = False
    
-         x = num.atleast_1d(x)
+         x = np.atleast_1d(x)
          if self.realization is not None:
             #res = self.realization(x.reshape(-1,1),random_state=self._seed)[:,0]
             res = splev(x, self.realization)
@@ -1248,8 +1248,8 @@ elif gp == 'sklearn':
          if scalar:
             return res[0],self.x.min() <= x[0] <= self.x.max()
          else:
-            return res,num.greater_equal(x, self.x.min())*\
-                  num.less_equal(x, self.x.max())
+            return res,np.greater_equal(x, self.x.min())*\
+                  np.less_equal(x, self.x.max())
          
       def domain(self):
          return (self.x.min(),self.x.max())
@@ -1259,12 +1259,12 @@ elif gp == 'sklearn':
          if not self.setup:
             self._setup()
    
-         if len(num.shape(x)) < 1:
+         if len(np.shape(x)) < 1:
             scalar = True
          else:
             scalar = False
    
-         x = num.atleast_1d(x)
+         x = np.atleast_1d(x)
          res,sigma = self.gpr.predict(x.reshape(-1,1), return_std=True)
    
          if scalar:
@@ -1279,10 +1279,10 @@ elif gp == 'sklearn':
          # scikit-learn seems to have a bug. We have to make a realization
          # and make a smoothing spline to approximate it.
          tmin,tmax = self.domain()
-         t = num.arange(tmin, tmax+1, 1.0)
+         t = np.arange(tmin, tmax+1, 1.0)
          if len(t) < 5:
-            t = num.linspace(tmin, tmax, 5)
-         seed = num.random.randint(2**32)
+            t = np.linspace(tmin, tmax, 5)
+         seed = np.random.randint(2**32)
          y = self.gpr.sample_y(t.reshape(-1,1), random_state=seed)[:,0]
          self.realization = splrep(t, y, k=3, s=0)
     
@@ -1297,11 +1297,11 @@ elif gp == 'sklearn':
    
       def deriv(self, x, n=1):
          '''Returns the nth derivative of the function at x.'''
-         if len(num.shape(x)) < 1:
+         if len(np.shape(x)) < 1:
             scalar = True
          else:
             scalar = False
-         xs = num.atleast_1d(x)
+         xs = np.atleast_1d(x)
          f = lambda x:  self.__call__(x)[0]
          res = deriv(f, xs, dx=self.scale/100., n=n)
    
@@ -1321,13 +1321,13 @@ elif gp == 'sklearn':
          if xmin is None:  xmin = self.x.min()
          if xmax is None:  xmax = self.x.max()
          dx = min(self.scale*1.0/20, (xmax-xmin)/5.0)
-         xs = num.arange(xmin, xmax, dx)
+         xs = np.arange(xmin, xmax, dx)
          dys = self.deriv(xs, n=1)
-         pids = num.greater(dys, 0)
-         inds = num.nonzero(num.logical_xor(pids[1:],pids[:-1]))[0]
+         pids = np.greater(dys, 0)
+         inds = np.nonzero(np.logical_xor(pids[1:],pids[:-1]))[0]
    
          if len(inds) == 0:
-            return (num.array([]), num.array([]), num.array([]))
+            return (np.array([]), np.array([]), np.array([]))
          ret = []
          for i in range(len(inds)):
             try:
@@ -1336,31 +1336,31 @@ elif gp == 'sklearn':
             except:
                continue
          if len(ret) == 0:
-            return (num.array([]), num.array([]), num.array([]))
-         ret = num.array(ret)
+            return (np.array([]), np.array([]), np.array([]))
+         ret = np.array(ret)
          vals = self.__call__(ret)[0]
          curvs = self.deriv(ret, n=2)
-         curvs = num.where(curvs > 0, 1, curvs)
-         curvs = num.where(curvs < 0, -1, curvs)
+         curvs = np.where(curvs > 0, 1, curvs)
+         curvs = np.where(curvs < 0, -1, curvs)
    
          return ret,vals,curvs
    
       def intercept(self, y):
          '''Find the value of x for which the interpolator goes through [y]'''
    
-         xs = num.arange(self.x.min(), self.x.max(), self.scale/10)
+         xs = np.arange(self.x.min(), self.x.max(), self.scale/10)
          f = lambda x:  self.__call__(x)[0] - y
          ys = f(xs)
    
-         pids = num.greater(ys, 0)
-         if num.all(pids) or num.all(-pids):
+         pids = np.greater(ys, 0)
+         if np.all(pids) or np.all(-pids):
             return None
    
          ret = []
-         inds = num.nonzero(pids[1:] - pids[:-1])[0]
+         inds = np.nonzero(pids[1:] - pids[:-1])[0]
          for i in range(len(inds)):
             ret.append(brentq(f, xs[inds[i]], xs[inds[i]+1]))
-         ret = num.array(ret)
+         ret = np.array(ret)
          return ret
    functions['gp'] = (GaussianProcess, "Gaussian Process (sklearn.GaussianProcess)")
 else:

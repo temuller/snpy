@@ -1,4 +1,5 @@
 import pytest
+import os
 import matplotlib
 import numpy as np
 matplotlib.use("Agg")
@@ -9,9 +10,9 @@ except:
    haveastropy = pytest.mark.skipif(True, reason="astropy not installed")
 
 @pytest.fixture
-def snobj():
+def snobj(datadir):
    import snpy
-   s = snpy.get_sn('SN2006ax.txt')
+   s = snpy.get_sn(os.path.join(datadir, 'SN2006ax.txt'))
    s.choose_model('max_model', stype='st')
    s.fit(['B','V'])
    return s

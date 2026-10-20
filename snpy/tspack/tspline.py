@@ -1,6 +1,6 @@
 from __future__ import print_function
 import tspack
-from numpy import *
+import numpy as np
 
 def tspsi(x, y, ncd=2, slopes=None, curvs=None, per=0, tension=None):
    # Figure out the parameters that need to go into the FORTRAN procedure.
@@ -46,7 +46,7 @@ def tspsi(x, y, ncd=2, slopes=None, curvs=None, per=0, tension=None):
             lwk = len(x)
          else:
             lwk = 2*len(x)
-   wk = zeros((lwk,), 'd')
+   wk = np.zeros((lwk,), 'd')
 
    wk,yp,sigma,ier = tspack.tspsi(x,y,ncd,iendc,per,unifrm,wk,yp,sigma)
 
@@ -86,7 +86,7 @@ def tspss(x, y, w, per=0, tension=None, s=None, stol=None, full_output=0):
          lwk = 6*len(x)
       else:
          lwk = 7*len(x)
-   wk = zeros((lwk,), 'd')
+   wk = np.zeros((lwk,), 'd')
 
    wk,sigma,ys,yp,nit,ier = tspack.tspss(x,y,per,unifrm,w,s,stol,wk,sigma,ys,yp)
 

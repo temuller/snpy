@@ -1,5 +1,5 @@
 from __future__ import print_function
-from numpy import *
+import numpy as np
 from .filters import fset
 import numpy.random as RA
 from .utils import fit1dcurve
@@ -44,25 +44,25 @@ class lc:
       self._eflux = None       #    "
       self.e_mag = e_mag       # error in magnitude
       self._SNR = SNR           # Signal-to-noise ratio
-      if any(equal(self.e_mag,0)):
+      if np.any(np.equal(self.e_mag,0)):
          print("Warning:  you have errors that are zero:  setting them to 0.001 mag.")
          print("If you don't like that, fix your errors.")
-         self.e_mag = where(equal(self.e_mag, 0), 0.001, self.e_mag)
+         self.e_mag = np.where(np.equal(self.e_mag, 0), 0.001, self.e_mag)
       self.covar = None        # full error matrix (if errors are correlated)
       self.restband = restband # the observed band in the frame of the SN
       self.K = K               # k-correction to convert mag to restband
       self.debug=0             # Of course, we'll never need this!
 
       # a way to mask out bad data from fitting
-      self.mask = ones(self.mag.shape, dtype=bool) 
+      self.mask = np.ones(self.mag.shape, dtype=np.bool) 
       self.filter = fset[self.band] # instance of filter object for this band
 
       # A way to keep track of sources of photometry
       if sids is None:
-         self.sids = zeros(self.mag.shape[0], dtype=int)
+         self.sids = np.zeros(self.mag.shape[0], dtype=int)
       else:
          try:
-            self.sids = asarray(sids, dtype=int)
+            self.sids = np.asarray(sids, dtype=int)
          except:
             raise ValueError("sids must be integer array or list")
          if self.sids.shape != self.mag.shape:
@@ -87,9 +87,9 @@ class lc:
       '''Check to see if another lc instance is equal to this one.'''
       if self.MJD.shape != other.MJD.shape:
          return False
-      return all(less(absolute(self.MJD-other.MJD),1e-5)) \
-             and all(less(absolute(self.magnitude-other.magnitude),1e-5)) \
-             and all(less(absolute(self.e_mag-other.e_mag),1e-5))
+      return np.all(np.less(np.absolute(self.MJD-other.MJD),1e-5)) \
+             and np.all(np.less(np.absolute(self.magnitude-other.magnitude),1e-5)) \
+             and np.all(np.less(np.absolute(self.e_mag-other.e_mag),1e-5))
 
    def __ne__(self, other):
       return not self.__eq__(other)
@@ -107,7 +107,7 @@ class lc:
       '''Get the flux of the observations. This can also be access through
       the :attr:`.flux` attribute.'''
       if getattr(self, '_flux', None) is None:
-         self._flux = power(10.0, -0.4*(self.mag - self.filter.zp))
+         self._flux = np.power(10.0, -0.4*(self.mag - self.filter.zp))
       return self._flux
 
    def get_SNR(self):
@@ -136,14 +136,14 @@ class lc:
       if self.covar is not None:
          if flux:
             f = self.get_flux()
-            return self.covar*f[newaxis,:]*f[:,newaxis]/1.17874
+            return self.covar*f[np.newaxis,:]*f[:,np.newaxis]/1.17874
          else:
             return self.covar
       else:
          if flux:
-            return power(self.get_e_flux(),2)
+            return np.power(self.get_e_flux(),2)
          else:
-            return power(self.e_mag,2)
+            return np.power(self.e_mag,2)
 
    def __getattr__(self, name):
       if name == "flux":
@@ -208,13 +208,23 @@ class lc:
                self.interp.setup = False
 
    def time_sort(self):
-      ids = argsort(self.MJD)
-      self.MJD = take(self.MJD, ids)
-      self.magnitude = take(self.magnitude, ids)
-      self.e_mag = take(self.e_mag, ids)
-      self.sids = take(self.sids, ids)
+      ids = np.argsort(self.MJD)
+      self.MJD = np.take(self.MJD, ids)
+      self.magnitude = np.take(self.magnitude, ids)
+      self.e_mag = np.take(self.e_mag, ids)
+      self.sids = np.take(self.sids, ids)
       if self.K is not None:
-         self.K = take(self.K, ids)
+         self.K = np.take(self.K, ids)
+      # everything else indexed by epoch must follow the same permutation
+      # (mask must be updated in-place:  __setattr__ forbids rebinding it)
+      self.mask[:] = np.take(self.mask, ids)
+      if getattr(self, '_SNR', None) is not None:
+         self._SNR = np.take(self._SNR, ids)
+      if self.covar is not None:
+         self.covar = self.covar[np.ix_(ids, ids)]
+      # cached flux/eflux are now stale
+      self._flux = None
+      self._eflux = None
 
    def mask_epoch(self, tmin, tmax):
       '''Update the lc's mask to only include data between tmin and tmax.i
@@ -227,8 +237,8 @@ class lc:
          
       Effects:
          The mask attribute is updated.'''
-      self.mask[greater_equal(self.t, tmax)] = False
-      self.mask[less_equal(self.t, tmin)] = False
+      self.mask[np.greater_equal(self.t, tmax)] = False
+      self.mask[np.less_equal(self.t, tmin)] = False
 
    def mask_emag(self, emax):
       '''Update the lc's mask to only include data with e_mag < max.
@@ -241,7 +251,7 @@ class lc:
          
       Effects:
          The mask attribute is updated.'''
-      self.mask[greater(self.e_mag, emax)] = False
+      self.mask[np.greater(self.e_mag, emax)] = False
 
    def mask_SNR(self, minSNR):
       '''Update the lc's mask to only include data with SNR > min.
@@ -254,7 +264,7 @@ class lc:
          
       Effects:
          The mask attribute is updated.'''
-      self.mask[less(self.SNR, minSNR)] = False
+      self.mask[np.less(self.SNR, minSNR)] = False
 
    def eval(self, times, t_tol=-1, epoch=0):
       '''Interpolate (if required) the data to specific times.  If there is a
@@ -283,32 +293,32 @@ class lc:
          # Try to use a model
          if self.band not in self.parent.model._fbands: raise AttributeError("Error.  To interpolate, you need to fit a template or model first.")
          
-      times = atleast_1d(times) 
+      times = np.atleast_1d(times) 
       if epoch: times = times + self.parent.Tmax
 
       if self.interp is not None:
          evm,mask = self.interp(times)
          if self.model_flux:
-            mask = mask*greater(evm,0)
-            evm = where(evm <=0, 1.0, evm)
-            evm = -2.5*log10(evm) + self.filter.zp
+            mask = mask*np.greater(evm,0)
+            evm = np.where(evm <=0, 1.0, evm)
+            evm = -2.5*np.log10(evm) + self.filter.zp
       else:
          evm,eevm,mask = self.parent.model(self.band, times)
          if not self.parent.model.model_in_mags:
-            mask = mask*greater(evm, 0)
-            evm = where(evm <=0, 1.0, evm)
-            evm = -2.5*log10(evm) + self.filter.zp
+            mask = mask*np.greater(evm, 0)
+            evm = np.where(evm <=0, 1.0, evm)
+            evm = -2.5*np.log10(evm) + self.filter.zp
 
       if t_tol > 0:
          # Now, we scan t and eval_t and find where they are less than tol.  
          # In these cases, we take the average of any matching times
-         delta = absolute(self.MJD[newaxis,:] - times[:,newaxis])
-         cond = less(delta, t_tol)
-         values = array([self.mag]*len(times))*cond
-         N = sum(cond, axis=1)
-         w = where(N > 0, N, 1)
-         s = sum(values, axis=1)
-         evm = where(N > 0, s/w, evm)
+         delta = np.absolute(self.MJD[np.newaxis,:] - times[:,np.newaxis])
+         cond = np.less(delta, t_tol)
+         values = np.array([self.mag]*len(times))*cond
+         N = np.sum(cond, axis=1)
+         w = np.where(N > 0, N, 1)
+         s = np.sum(values, axis=1)
+         evm = np.where(N > 0, s/w, evm)
 
       return(evm,mask)
 
@@ -342,7 +352,7 @@ class lc:
          * model_type:     "spline" or "spline2"
          * tck:            spline info '''
       return self.template(fitflux=fitflux, do_sigma=do_sigma, Nboot=Nboot, 
-            method=method, **args)
+            method=method, keep_boot=keep_boot, **args)
 
    def curve_fit(self, fitflux=0, do_sigma=1, Nboot=100, keep_boot=1, 
          method='spline2', **args):
@@ -374,7 +384,7 @@ class lc:
          * model_type:     "spline" or "spline2"
          * tck:            spline info '''
       return self.template(fitflux=fitflux, do_sigma=do_sigma, Nboot=Nboot, 
-            method=method, **args)
+            method=method, keep_boot=keep_boot, **args)
 
 
    def list_types(self):
@@ -386,37 +396,37 @@ class lc:
       exists for the LC, use it where it is valid, otherwise, return
       an extrapolation.'''
       scalar = False
-      if len(shape(x)) == 0:
+      if len(np.shape(x)) == 0:
          scalar = True
-      x = atleast_1d(x)
+      x = np.atleast_1d(x)
       if x.shape[0] == 0:
          '''empty array, just return some sensible value'''
          if flux:
-            return x*0 + median(self.flux)
+            return x*0 + np.median(self.flux)
          else:
-            return x*0 + median(self.mag)
+            return x*0 + np.median(self.mag)
 
 
       if len(x.shape) == 2 and x.shape[1] == 1:
          x = x[:,0]
       if self.band in self.parent.model._fbands:
-         sids = argsort(x)
+         sids = np.argsort(x)
          m,em,f = self.parent.model(self.band, x[sids], extrap=False)
-         if not all(f):
+         if not np.all(f):
             # need to do linear interpolation between end of template and
             # remaining points
             m0,em0,f0 = self.parent.model(self.band, self.MJD)
             # First valid point
-            mid = argmin(self.MJD[f0])
+            mid = np.argmin(self.MJD[f0])
             xmin = self.MJD[f0][mid]
             if verbose:
                print("extrapolating early data up to ",xmin)
-            lids = less(x[sids], xmin)
-            if any(lids):
+            lids = np.less(x[sids], xmin)
+            if np.any(lids):
                m1,em1,f1 = self.parent.model(self.band, x[sids][lids],
                      extrap=True)
                m[lids] = m1
-            mid = argmax(self.MJD[f0])
+            mid = np.argmax(self.MJD[f0])
             # last valid point on the model
             xmax = self.MJD[f0][mid]
             ymax = m0[f0][mid]
@@ -424,33 +434,34 @@ class lc:
             if verbose:
                print("extrapolating late data from (%f,%f)" % (xmax,ymax))
 
-            lids = greater(x[sids], xmax)
-            if any(lids):
-               gids = greater_equal(self.MJD, xmax)
+            lids = np.greater(x[sids], xmax)
+            if np.any(lids):
+               gids = np.greater_equal(self.MJD, xmax)
                if verbose:
                   print("   using points at", self.MJD[gids])
-               a,b = polyfit(self.MJD[gids], self.mag[gids], 1)
+               a,b = np.polyfit(self.MJD[gids], self.mag[gids], 1)
                if verbose:
                   print("   median slope: ", a)
                m[lids] = ymax + a*(x[sids][lids]-xmax)
          y = x*0
-         put(y, sids, m)
+         np.put(y, sids, m)
          if flux:
-            return power(10.0, -0.4*(y - self.filter.zp))
+            return np.power(10.0, -0.4*(y - self.filter.zp))
          return y
       # No model, so we'll just give a reasonable constant mean
       if flux:
-         return x*0 + median(self.flux)
-      return x*0 + median(self.mag)
+         return x*0 + np.median(self.flux)
+      return x*0 + np.median(self.mag)
 
    def template(self, fitflux=False, do_sigma=True, Nboot=50, 
-         method=default_method, compute_params=True, interactive=False, **args):
+         method=default_method, compute_params=True, interactive=False,
+         keep_boot=True, **args):
       '''A backwrd-compatibility alias for :meth:`.spline_fit`.'''
 
       if self.parent.Tmax > 0:
-         evt = arange(int(self.t[0]), int(self.t[-1])+1)*1.0 + self.parent.Tmax
+         evt = np.arange(int(self.t[0]), int(self.t[-1])+1)*1.0 + self.parent.Tmax
       else:
-         evt = arange(self.MJD[0], self.MJD[-1])*1.0
+         evt = np.arange(self.MJD[0], self.MJD[-1])*1.0
 
       x = self.MJD
       if fitflux:
@@ -474,7 +485,21 @@ class lc:
          self.model_flux = 0
 
       if compute_params:
-         self.compute_lc_params(N=Nboot)
+         if do_sigma:
+            self.compute_lc_params(N=Nboot)
+         else:
+            # No MC realizations means no error estimates.  N=1 evaluates the
+            # mean interpolator once, which still gives the point estimates;
+            # clear the errors rather than report a bogus zero.
+            self.compute_lc_params(N=1)
+            for attrib in ['e_Tmax', 'e_Mmax', 'e_dm15', 'cov_Tmax_dm15',
+                  'cov_Tmax_Mmax', 'cov_Mmax_dm15']:
+               setattr(self, attrib, None)
+      if not keep_boot and self.interp is not None and \
+            hasattr(self.interp, 'realizations'):
+         # The realizations are only needed to estimate the errors above;
+         # Interpolator.error() regenerates them on demand if asked later.
+         self.interp.realizations = []
 
    def compute_lc_params(self, N=50):
       '''Compute dm15, Tmax, Mmax, and covariances for the light-curve.
@@ -514,11 +539,11 @@ class lc:
          else:
             xs,ys,curvs = inter.find_extrema()
          if self.model_flux:
-            xs = xs[less(curvs,0)]
-            ys = ys[less(curvs,0)]
+            xs = xs[np.less(curvs,0)]
+            ys = ys[np.less(curvs,0)]
          else:
-            xs = xs[greater(curvs,0)]
-            ys = ys[greater(curvs,0)]
+            xs = xs[np.greater(curvs,0)]
+            ys = ys[np.greater(curvs,0)]
          if len(xs) == 0:
             if i == 0:
                # If we can't find maximum on the data, we're done
@@ -546,60 +571,60 @@ class lc:
                Mmaxs.append(-1)
                dm15s.append(-1)
             else:
-               Mmaxs.append(-2.5*log10(ys[0]) + zp)
+               Mmaxs.append(-2.5*np.log10(ys[0]) + zp)
                if m15:
-                  dm15s.append(-2.5*log10(y15) + zp - Mmaxs[-1])
+                  dm15s.append(-2.5*np.log10(y15) + zp - Mmaxs[-1])
                else:
                   dm15s.append(-1)
       #Now compute stats
       inter.reset_mean()
-      Tmaxs,Mmaxs,dm15s = list(map(array, [Tmaxs, Mmaxs, dm15s]))
+      Tmaxs,Mmaxs,dm15s = list(map(np.array, [Tmaxs, Mmaxs, dm15s]))
 
-      Tgids = greater(Tmaxs, 0)
-      goodfrac = sum(Tgids)*1.0/len(Tgids)
-      if sum(Tgids)*1.0/len(Tgids) < 0.8:
+      Tgids = np.greater(Tmaxs, 0)
+      goodfrac = np.sum(Tgids)*1.0/len(Tgids)
+      if np.sum(Tgids)*1.0/len(Tgids) < 0.8:
          print("Warning!  %f%% of MC realizations had good Tmax" % \
-               (sum(Tgids)*100.0/len(Tgids),))
-      Mgids = greater(Mmaxs, 0)
-      if sum(Mgids)*1.0/len(Mgids) < 0.8:
+               (np.sum(Tgids)*100.0/len(Tgids),))
+      Mgids = np.greater(Mmaxs, 0)
+      if np.sum(Mgids)*1.0/len(Mgids) < 0.8:
          print("Warning!  %f%% of MC realizations had good Mmax" %\
-               (sum(Mgids)*100.0/len(Mgids),))
-      dgids = greater(dm15s, 0)
-      if sum(dgids)*1.0/len(dgids) < 0.8:
+               (np.sum(Mgids)*100.0/len(Mgids),))
+      dgids = np.greater(dm15s, 0)
+      if np.sum(dgids)*1.0/len(dgids) < 0.8:
          print("Warning!  %f%% of MC realizations had good dm15" %\
-               (sum(dgids)*100.0/len(dgids),))
-      if any(Tgids):
+               (np.sum(dgids)*100.0/len(dgids),))
+      if np.any(Tgids):
          self.Tmax = Tmaxs[0]
-         self.e_Tmax = std(Tmaxs[Tgids]) 
+         self.e_Tmax = np.std(Tmaxs[Tgids]) 
       else:
          self.Tmax = self.e_Tmax = -1
-      if any(Mgids):
+      if np.any(Mgids):
          self.Mmax = Mmaxs[0]
-         self.e_Mmax = std(Mmaxs[Mgids]) 
+         self.e_Mmax = np.std(Mmaxs[Mgids]) 
       else:
          self.Mmax = self.e_Mmax = -1
-      if any(dgids):
+      if np.any(dgids):
          self.dm15 = dm15s[0]
-         self.e_dm15 = std(dm15s[dgids]) 
+         self.e_dm15 = np.std(dm15s[dgids]) 
       else:
          self.dm15 = self.e_dm15 = -1
 
-      if sum(Tgids*dgids) > 3:
+      if np.sum(Tgids*dgids) > 3:
          self.cov_Tmax_dm15 = \
-               sum(compress(Tgids*dgids, (Tmaxs-Tmaxs[0])*(dm15s-dm15s[0])))/\
-               (sum(Tgids*dgids) - 1)
+               np.sum(np.compress(Tgids*dgids, (Tmaxs-Tmaxs[0])*(dm15s-dm15s[0])))/\
+               (np.sum(Tgids*dgids) - 1)
       
-      if sum(Tgids*Mgids) > 3:
+      if np.sum(Tgids*Mgids) > 3:
          self.cov_Tmax_Mmax = \
-               sum(compress(Tgids*Mgids, (Tmaxs-Tmaxs[0])*(Mmaxs-Mmaxs[0])))/\
-               (sum(Tgids*Mgids) - 1)
-      if sum(Mgids*dgids) > 3:
+               np.sum(np.compress(Tgids*Mgids, (Tmaxs-Tmaxs[0])*(Mmaxs-Mmaxs[0])))/\
+               (np.sum(Tgids*Mgids) - 1)
+      if np.sum(Mgids*dgids) > 3:
          self.cov_Mmax_dm15 = \
-               sum(compress(Mgids*dgids, (Mmaxs-Mmaxs[0])*(dm15s-dm15s[0])))/\
-               (sum(Mgids*dgids) - 1)
+               np.sum(np.compress(Mgids*dgids, (Mmaxs-Mmaxs[0])*(dm15s-dm15s[0])))/\
+               (np.sum(Mgids*dgids) - 1)
       return
 
-   def plot(self, epoch=1, flux=0, gloes=True, symbol=4, outfile=None,
+   def plot(self, epoch=1, flux=0, symbol=4, outfile=None,
          use_model=True):
       '''Plot this light-curve, including residuals if a model or interpolator
       is defined.  
@@ -607,7 +632,6 @@ class lc:
       Args:
          epoch (Bool):  If True, plot times relative to self.Tmax
          flux (Bool):   If True, plot in flux units rather than magnitudes
-         gloes (Bool):  If True, use GLoEs to smooth data and produce model
          symbol (misc): Specify matplotlib symbol to use for plotting points
          outfile (string or None):  If not None, output graph to specified file
          use_model (Bool): If True and both model and interpolator are defined,

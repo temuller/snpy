@@ -3,7 +3,7 @@
    A collection of plotting routines that SNPY uses to display data.  This
    version uses the matplotlib library.
 '''
-from numpy import *
+import numpy as np
 import matplotlib
 #matplotlib.use('TkAgg')
 from snpy import myplotlib
@@ -130,7 +130,7 @@ class click_window:
       extent = self.rect.get_bbox().get_points()
       self.rect.remove()
       self.ax.figure.canvas.draw()
-      return(list(ravel(extent)))
+      return(list(np.ravel(extent)))
 
 class click_xrange:
    '''An interactive xrange selector.  Given an axis and a starting
@@ -260,7 +260,7 @@ class ButtonClick:
          else:
             if event.inaxes != self.pending.ax:  return
             x0,x1 = self.pending.close()
-            if absolute(x1-x0) == 0:
+            if np.absolute(x1-x0) == 0:
                self.pending.ax.set_xbound(self.pending.ax.xlim_0)
             else:
                self.pending.ax.set_xbound((x0,x1))
@@ -275,7 +275,7 @@ class ButtonClick:
          else:
             if event.inaxes != self.pending.ax:  return
             y0,y1 = self.pending.close()
-            if absolute(y1-y0) == 0:
+            if np.absolute(y1-y0) == 0:
                self.pending.ax.set_ybound(self.pending.ax.ylim_0)
             else:
                self.pending.ax.set_ybound((y0,y1))
@@ -290,7 +290,7 @@ class ButtonClick:
          else:
             if event.inaxes != self.pending.ax:  return
             x0,y0,x1,y1 = self.pending.close()
-            if absolute(x1-x0) == 0 and absolute(y1-y0) == 0:
+            if np.absolute(x1-x0) == 0 and np.absolute(y1-y0) == 0:
                self.pending.ax.set_xbound(self.pending.ax.xlim_0)
                self.pending.ax.set_ybound(self.pending.ax.ylim_0)
             else:
@@ -306,7 +306,7 @@ class ButtonClick:
          if not l:  return
          l = l[0]
          xs,ys = l.get_data()
-         id = argmin(power(event.xdata-xs,2) + power(event.ydata-ys,2))
+         id = np.argmin(np.power(event.xdata-xs,2) + np.power(event.ydata-ys,2))
          lc.mask[id] = ~lc.mask[id]
          replot_lc(lc)
          return
@@ -368,14 +368,14 @@ def plot_filters(self, bands=None, day=0, fill=0, outfile=None):
       minw = min(minw, f1.wave[0], f2.wave[0])
       maxw = max(maxw, f1.wave[-1], f2.wave[-1])
       maxresp = f1.resp.max()
-      max_wave = f1.wave[argmax(f1.resp)]
+      max_wave = f1.wave[np.argmax(f1.resp)]
       ax.plot(f1.wave, f1.resp/maxresp, '-', color='blue')
       if fill:
          ax.fill_between(f1.wave, f1.resp/maxresp, facecolor='blue', alpha=0.1)
       ax.annotate(band, (max_wave,1.05), color='blue', 
             horizontalalignment='center', verticalalignment='center')
-      maxresp = maximum.reduce(f2.resp)
-      max_wave = f2.wave[argmax(f2.resp)]*(1+self.z)
+      maxresp = np.maximum.reduce(f2.resp)
+      max_wave = f2.wave[np.argmax(f2.resp)]*(1+self.z)
       ax.plot(f2.wave*(1+self.z), f2.resp/maxresp, '-', color='red')
       if fill:
          ax.fill_between(f2.wave*(1+self.z), f2.resp/maxresp, facecolor='red', alpha=0.1)
@@ -424,7 +424,7 @@ def plot_SN_panel(obj, ax, filt, delt, symbol, color, Toff, **kwargs):
          y = obj.data[filt].mag[obj.data[filt].mask] + delt
          ey = obj.data[filt].e_mag[obj.data[filt].mask]
       else:
-         y = obj.data[filt].flux[obj.data[filt].mask]*power(10, -0.4*delt)
+         y = obj.data[filt].flux[obj.data[filt].mask]*np.power(10, -0.4*delt)
          ey = obj.data[filt].e_flux[obj.data[filt].mask]
    else:
       x = obj.data[filt].MJD
@@ -432,7 +432,7 @@ def plot_SN_panel(obj, ax, filt, delt, symbol, color, Toff, **kwargs):
          y = obj.data[filt].mag + delt
          ey = obj.data[filt].e_mag
       else:
-         y = obj.data[filt].flux*power(10, -0.4*(delt))
+         y = obj.data[filt].flux*np.power(10, -0.4*(delt))
          ey = obj.data[filt].e_flux
 
 
@@ -445,55 +445,55 @@ def plot_SN_panel(obj, ax, filt, delt, symbol, color, Toff, **kwargs):
          mfc=color, mec=color, ecolor=color, label=label, linestyle='None')
            #ecolor='black')
    if kwargs.get('label_bad', False):
-      gids = equal(obj.data[filt].mask, 0)
-      if any(gids):
+      gids = np.equal(obj.data[filt].mask, 0)
+      if np.any(gids):
          x = obj.data[filt].MJD[gids] - Toff
          if not flux:
             y = obj.data[filt].mag[gids] + delt
          else:
-            y = obj.data[filt].flux[gids]*power(10, -0.4*(delt))
+            y = obj.data[filt].flux[gids]*np.power(10, -0.4*(delt))
          ax.plot(x, y, marker='x', mec='red', ms=12, mew=1, linestyle='')
    if not single and SNR is not None:
       cs = ['orange','red']
       for i in range(2): 
-         gids = less(obj.data[filt].SNR, SNR[i])
-         if any(gids):
+         gids = np.less(obj.data[filt].SNR, SNR[i])
+         if np.any(gids):
             x = obj.data[filt].MJD[gids] - Toff
             if not flux:
                y = obj.data[filt].mag[gids] + delt
             else:
-               y = obj.data[filt].flux[gids]*power(10, -0.4*(delt))
+               y = obj.data[filt].flux[gids]*np.power(10, -0.4*(delt))
             ax.plot(x, y, symbol, mfc=cs[i], ms=msize)
 
 
    # Now check to see if there is a model to plot:
    if kwargs.get('plotmodel', True) and obj.model.Tmax is not None and \
          filt in obj.model._fbands:
-      t = arange(-10,70,1.0) + obj.Tmax
+      t = np.arange(-10,70,1.0) + obj.Tmax
       mag,err,gids = obj.model(filt, t)
-      if any(gids):
+      if np.any(gids):
          if not flux:
             y = mag + delt
          else:
             zp = fset[filt].zp
-            y = power(10, -0.4*(mag - zp + delt))
-         ax.plot(compress(gids,t-Toff), compress(gids,y), 
+            y = np.power(10, -0.4*(mag - zp + delt))
+         ax.plot(np.compress(gids,t-Toff), np.compress(gids,y), 
                color='k', linewidth=linewidth)
-         l = ax.plot(compress(gids,t-Toff), compress(gids,y+err), 
+         l = ax.plot(np.compress(gids,t-Toff), np.compress(gids,y+err), 
                '--',color='k', linewidth=linewidth, scaley=False)
          #l[0].autoscale=False
-         l = ax.plot(compress(gids,t-Toff), compress(gids,y-err), 
+         l = ax.plot(np.compress(gids,t-Toff), np.compress(gids,y-err), 
                '--',color='k', linewidth=linewidth, scaley=False)
          #l[0].autoscale=False
    elif obj.data[filt].interp is not None:
       d = obj.data[filt].interp.domain()
-      t = arange(d[0], d[1]+1.0, 1.0)
+      t = np.arange(d[0], d[1]+1.0, 1.0)
       mag,gids = obj.data[filt].eval(t, t_tol=-1)
       if not flux:
          y = mag + delt
       else:
          zp = fset[filt].zp
-         y = power(10, -0.4*(mag - zp + delt))
+         y = np.power(10, -0.4*(mag - zp + delt))
       ax.plot(t[gids] - Toff, y[gids], color='k',
             linewidth=linewidth)
 
@@ -569,8 +569,8 @@ def plot_sn(self, **kwargs):
       eff_wavs = []
       for filt in bands:
          eff_wavs.append(fset[filt].ave_wave)
-      eff_wavs = asarray(eff_wavs)
-      ids = argsort(eff_wavs)
+      eff_wavs = np.asarray(eff_wavs)
+      ids = np.argsort(eff_wavs)
       self.filter_order = [bands[i] for i in ids]
       bands = self.filter_order
 
@@ -585,7 +585,7 @@ def plot_sn(self, **kwargs):
       Toff = Tmax
    elif JDoff:
       if JDoff is True or JDoff == 'auto':
-         Toff = int(min(concatenate([l.MJD for l in list(self.data.values())]))/10.0)
+         Toff = int(np.min(np.concatenate([l.MJD for l in list(self.data.values())]))/10.0)
          Toff = Toff*10
       else:
          try:
@@ -605,8 +605,8 @@ def plot_sn(self, **kwargs):
                rbs.append(band[0])
             bidx[band] = rbs.index(band[0])
       elif filtsep is not None:
-         waves = array([fset[band].ave_wave for band in bands])
-         sids = argsort(waves)
+         waves = np.array([fset[band].ave_wave for band in bands])
+         sids = np.argsort(waves)
          filts = [bands[idx] for idx in sids]
          seps = waves[sids][1:] - waves[sids][:-1]
          rbs.append(filts[0])
@@ -646,9 +646,9 @@ def plot_sn(self, **kwargs):
          if b not in symbols:  symbols[b] = 'o'
    if kwargs.get('relative', False):
       if self.data[bands[0]].model is not None:
-         rel_off = min(self.data[bands[0]].model)
+         rel_off = np.min(self.data[bands[0]].model)
       else:
-         rel_off = min(self.data[bands[0]].mag)
+         rel_off = np.min(self.data[bands[0]].mag)
    else:
       rel_off = 0
 
@@ -661,15 +661,15 @@ def plot_sn(self, **kwargs):
       ylabel = 'relative flux'
    if not single:
       if cols is None and rows is None:
-         cols = int(round(sqrt(n_plots)))
+         cols = int(np.round(np.sqrt(n_plots)))
          rows = (n_plots // cols)
       elif cols is None:
          cols = n_plots // rows
       else:
          rows = n_plots // cols
       if n_plots % cols:  rows += 1
-      figwidth = min([8*dpi, max_width])*1.0/dpi
-      figheight = min([8.*rows//cols*dpi, max_height])*1.0/dpi
+      figwidth = np.min([8*dpi, max_width])*1.0/dpi
+      figheight = np.min([8.*rows//cols*dpi, max_height])*1.0/dpi
       p = myplotlib.PanelPlot(cols, rows, num=110, figsize=(figwidth,figheight))
    else:
       p = myplotlib.SimplePlot(num=110, figsize=(8,8))
@@ -731,8 +731,8 @@ def plot_sn(self, **kwargs):
          eff_wavs = []
          for filt in obands:
             eff_wavs.append(fset[filt].ave_wave)
-         eff_wavs = asarray(eff_wavs)
-         ids = argsort(eff_wavs)
+         eff_wavs = np.asarray(eff_wavs)
+         ids = np.argsort(eff_wavs)
          oobj.filter_order = [obands[i] for i in ids]
          obands = oobj.filter_order
       if epoch and getattr(oobj,'Tmax', None) is not None:
@@ -828,13 +828,13 @@ def plot_color(self, f1, f2, dt=0.5, epoch=True, deredden=True, interp=False,
       R1 = fset[f1].R(wave=Ia_w, flux=Ia_f, Rv=3.1)
       R2 = fset[f2].R(wave=Ia_w, flux=Ia_f, Rv=3.1)
       BV = BV - (R1-R2)*self.EBVgal
-      eBV = sqrt(power(eBV,2) + (R1-R2)**2*0.1**2*self.EBVgal**2)
+      eBV = np.sqrt(np.power(eBV,2) + (R1-R2)**2*0.1**2*self.EBVgal**2)
 
-   bids = equal(flag, 0)
-   rids = equal(flag, 1)
+   bids = np.equal(flag, 0)
+   rids = np.equal(flag, 1)
    ax.errorbar(MJD[bids]-t0, BV[bids], yerr=eBV[bids], fmt='o', capsize=0, 
          color='black', label='obs')
-   if any(rids):
+   if np.any(rids):
       ax.errorbar(MJD[rids]-t0, BV[rids], yerr=eBV[rids], fmt='o', capsize=0, 
          color='red', mfc='red', label='inter')
    ax.legend(prop={'size':12})
@@ -903,7 +903,7 @@ def plot_lc(self, epoch=1, flux=0, symbol=4, outfile=None, use_model=True):
    p.errorbar(self.MJD - epoch*Tmax, y, yerr=ey, barsabove=True, 
          capsize=0, elinewidth=1, fmt='o', mfc='blue', linestyle='None',
            ecolor='black', picker=True)
-   if not all(self.mask):
+   if not np.all(self.mask):
       # Plot any masked out data s red filled symbols
       p._x, = p.plot(self.MJD[~self.mask] - epoch*Tmax, y[~self.mask], 'o', 
             color='red')
@@ -913,19 +913,19 @@ def plot_lc(self, epoch=1, flux=0, symbol=4, outfile=None, use_model=True):
    # Order of preference:  plot the model, else plot the spline, else
    #  plot nothing. If both and use_model is True, use the model
    if self.band in self.parent.model._fbands and use_model:
-      t = arange(-10,70,1.0) + Tmax
+      t = np.arange(-10,70,1.0) + Tmax
       m,em,mask = self.parent.model(self.band, t)
       m_m,m_em,m_mask = self.parent.model(self.band, self.MJD)
       x = self.MJD
       if flux and self.parent.model.model_in_mags:
-         p._model = p.plot(t[mask]-epoch*Tmax, power(10, -0.4*(m[mask]-self.filter.zp)), 
+         p._model = p.plot(t[mask]-epoch*Tmax, np.power(10, -0.4*(m[mask]-self.filter.zp)), 
                '-', color='black')[0]
-         y = self.flux - power(10,-0.4*(m_m - self.filter.zp))
+         y = self.flux - np.power(10,-0.4*(m_m - self.filter.zp))
          dy = self.e_flux
       elif not flux and not self.parent.model.model_in_mags:
-         p._model = p.plot(t[mask]-epoch*Tmax, -2.5*log10(m[mask]) + \
+         p._model = p.plot(t[mask]-epoch*Tmax, -2.5*np.log10(m[mask]) + \
                self.filter.zp, '-')[0]
-         y = self.mag + 2.5*log10(m_m) + self.filter.zp
+         y = self.mag + 2.5*np.log10(m_m) + self.filter.zp
          dy = self.e_mag
       elif flux:
          p._model = p.plot(t[mask]-epoch*Tmax,m[mask], '-',
@@ -941,7 +941,7 @@ def plot_lc(self, epoch=1, flux=0, symbol=4, outfile=None, use_model=True):
       p2._errb = p2.errorbar(x - epoch*Tmax, y, yerr=dy, fmt='o', linestyle='None',
             mfc='blue', capsize=0, elinewidth=1, barsabove=True, ecolor='black',
             picker=True)
-      if not all(self.mask):
+      if not np.all(self.mask):
          p2._x, = p2.plot(x[~self.mask] - epoch*Tmax, y[~self.mask], 'o', 
                color='red')
       else:
@@ -950,22 +950,22 @@ def plot_lc(self, epoch=1, flux=0, symbol=4, outfile=None, use_model=True):
 
    elif self.interp is not None:
       if self.tmin is not None and self.tmax is not None:
-         t = arange(self.tmin, self.tmax+1, 1.0)
+         t = np.arange(self.tmin, self.tmax+1, 1.0)
       else:
-         t = arange(self.MJD[0], self.MJD[-1] + 1, 1.0)
+         t = np.arange(self.MJD[0], self.MJD[-1] + 1, 1.0)
       self._t = t
       self._epoch = epoch
       m,mask = self.eval(t, t_tol=-1)
       m_model,m_mask = self.eval(self.MJD, t_tol=-1)
       if flux:
-         p._model = p.plot(compress(mask,t - epoch*Tmax), 
-                compress(mask, power(10, -0.4*(m - self.filter.zp))),'-',
+         p._model = p.plot(np.compress(mask,t - epoch*Tmax), 
+                np.compress(mask, np.power(10, -0.4*(m - self.filter.zp))),'-',
                 color='black')[0]
          x = self.MJD
-         y = self.flux - power(10, -0.4*(m_model-self.filter.zp))
+         y = self.flux - np.power(10, -0.4*(m_model-self.filter.zp))
          dy = self.e_flux
       else:
-         p._model = p.plot(compress(mask,t - epoch*Tmax), compress(mask,m),'-',
+         p._model = p.plot(np.compress(mask,t - epoch*Tmax), np.compress(mask,m),'-',
                color='black')[0]
          x = self.MJD
          y = self.mag - m_model
@@ -974,7 +974,7 @@ def plot_lc(self, epoch=1, flux=0, symbol=4, outfile=None, use_model=True):
       p2._errb = p2.errorbar(x - epoch*Tmax,y, yerr=dy, barsabove=True,
          capsize=0, elinewidth=1, fmt='o', mfc='blue', linestyle='None',
          ecolor='black', picker=True)
-      if not all(self.mask):
+      if not np.all(self.mask):
          p2._x, = p2.plot(x[~self.mask] - epoch*Tmax, y[~self.mask], 'o',
                color='red')
       else:
@@ -1008,7 +1008,7 @@ def replot_lc(self):
       for p in self.mp.axes:
          # Only need to deal with possible mask
          if p._x:  p._x.remove()
-         if not all(self.mask):
+         if not np.all(self.mask):
             xx,yy = p.lines[0].get_data()
             p._x, = p.plot(xx[~self.mask], yy[~self.mask], 'o', color='red')
             self.mp.fig.canvas.draw()
@@ -1035,15 +1035,15 @@ def replot_lc(self):
    else:
       Tmax = 0
    if p.flux:
-      p._model = p.plot(compress(mask,t - epoch*Tmax), 
-             compress(mask, power(10, -0.4*(m - self.filter.zp))),'-',
+      p._model = p.plot(np.compress(mask,t - epoch*Tmax), 
+             np.compress(mask, np.power(10, -0.4*(m - self.filter.zp))),'-',
              color='black')[0]
       x = self.MJD
-      y = self.flux - power(10, -0.4*(m_model-self.filter.zp))
+      y = self.flux - np.power(10, -0.4*(m_model-self.filter.zp))
       yy = self.flux
       dy = self.e_flux
    else:
-      p._model = p.plot(compress(mask,t - epoch*Tmax), compress(mask,m),'-',
+      p._model = p.plot(np.compress(mask,t - epoch*Tmax), np.compress(mask,m),'-',
             color='black')[0]
       x = self.MJD
       y = self.mag - m_model
@@ -1052,7 +1052,7 @@ def replot_lc(self):
    p2._errb = p2.errorbar(x - epoch*Tmax,y, yerr=dy, barsabove=True,
       capsize=0, elinewidth=1, fmt='o', mfc='blue', linestyle='None',
       ecolor='black')
-   if not all(self.mask):
+   if not np.all(self.mask):
       p._x, = p.plot(self.MJD[~self.mask] - epoch*Tmax, yy[~self.mask], 'o', 
             color='red')
       p2._x, = p2.plot(x[~self.mask] - epoch*Tmax, y[~self.mask], 'o',
@@ -1082,8 +1082,8 @@ def plot_kcorrs(self, colors=None, symbols=None, outfile=None):
    eff_wavs = []
    for filt in bands:
       eff_wavs.append(fset[filt].ave_wave)
-   eff_wavs = asarray(eff_wavs)
-   ids = argsort(eff_wavs)
+   eff_wavs = np.asarray(eff_wavs)
+   ids = np.argsort(eff_wavs)
    bands = [bands[i] for i in ids]
       
    n_plots = len(bands)
@@ -1097,11 +1097,11 @@ def plot_kcorrs(self, colors=None, symbols=None, outfile=None):
       #p.axes[i].yaxis.set_major_locator(MaxNLocator(5))
       b = bands[i]
       x = self.data[b].MJD - self.Tmax
-      days = (arange(int(x[0]), int(x[-1]), 1)) #/(1+self.z)/self.ks_s
+      days = (np.arange(int(x[0]), int(x[-1]), 1)) #/(1+self.z)/self.ks_s
       rest_days = days/(1+self.z)/self.ks_s
-      k,k_m = list(map(array, kcorr.kcorr(rest_days.tolist(), self.restbands[b], 
+      k,k_m = list(map(np.array, kcorr.kcorr(rest_days.tolist(), self.restbands[b], 
          b, self.z, self.EBVgal, 0.0, version=self.k_version)))
-      k_m = equal(k_m, 1)
+      k_m = np.equal(k_m, 1)
       p.axes[i].filt = b
       p.axes[i].inst = self
       p.axes[i].plot(days[k_m],k[k_m], '-', color=colors[b])
@@ -1129,7 +1129,7 @@ def plot_mangled_SED(event):
    self = event.inaxes.inst
 
    x = event.xdata;  y = event.ydata
-   id = argmin(power(x - self.data[band].t,2) + power(y - self.ks[band],2))
+   id = np.argmin(np.power(x - self.data[band].t,2) + np.power(y - self.ks[band],2))
    day = int(self.data[band].t[id])
    wave,flux = kcorr.get_SED(day, version='H3')
    ax.plot(wave,flux, label='Original SED', color='black')

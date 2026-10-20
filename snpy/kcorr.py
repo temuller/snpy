@@ -10,7 +10,7 @@ been moved to the :mod:`snpy.filter` module.
 
 from __future__ import print_function
 import os,sys,string,re
-import numpy as num
+import numpy as np
 import scipy.interpolate
 import h5py
 import onnxruntime as onnx_rt
@@ -48,27 +48,27 @@ def dm152s(dm15):
 f = pyfits.open(os.path.join(spec_base, 'Hsiao_SED_V2.fits'))
 h_sed = f[0].data
 head = f[0].header
-h_wav = head['CRVAL1'] + (num.arange(head['NAXIS1'],dtype=num.float32) - \
+h_wav = head['CRVAL1'] + (np.arange(head['NAXIS1'],dtype=np.float32) - \
       head['CRPIX1'] + 1)*head['CDELT1']
 f.close()
 # Hsiao's new OPT+NIR uberspectrum
 f = pyfits.open(os.path.join(spec_base, 'Hsiao_SED_V3.fits'))
 h3_sed = f[0].data
 head = f[0].header
-h3_wav = head['CRVAL1']+(num.arange(head['NAXIS1'],dtype=num.float32) - \
+h3_wav = head['CRVAL1']+(np.arange(head['NAXIS1'],dtype=np.float32) - \
       head['CRPIX1'] + 1)*head['CDELT1']
 f.close()
 # Nugent's uberspectrum:
 f = pyfits.open(os.path.join(spec_base, "Nugent_SED.fits"))
 n_sed = f[0].data
 head = f[0].header
-n_wav = head['CRVAL1']+(num.arange(head['NAXIS1'],dtype=num.float32) - \
+n_wav = head['CRVAL1']+(np.arange(head['NAXIS1'],dtype=np.float32) - \
       head['CRPIX1'] + 1)*head['CDELT1']
 # Nugent's 91bg-like SED:
 f = pyfits.open(os.path.join(spec_base, "Nugent_91bg_SED.fits"))
 n91_sed = f[0].data
 head = f[0].header
-n91_wav = head['CRVAL1']+(num.arange(head['NAXIS1'],dtype=num.float32) - \
+n91_wav = head['CRVAL1']+(np.arange(head['NAXIS1'],dtype=np.float32) - \
       head['CRPIX1'] + 1)*head['CDELT1']
 # read in building blocks for Lu2023 NIR template:
 NIR_temp_path = os.path.join(spec_base, 'NIR_template_buildingblocks.h5')
@@ -88,7 +88,7 @@ with h5py.File(NIR_temp_path, "r") as file:
                             NIR_temp_dict[key][subkey][subsubkey] = {}
                             for subsubsubkey, subsubsubvalue in subsubvalue.items():
                                 if subsubsubkey == "GPR_onx_string": # it's byte datatype
-                                    NIR_temp_dict[key][subkey][subsubkey][subsubsubkey] = num.bytes_(subsubsubvalue[()])
+                                    NIR_temp_dict[key][subkey][subsubkey][subsubsubkey] = np.bytes_(subsubsubvalue[()])
                                     # load the model here is better than in the function - since this is the slow part 
                                     NIR_temp_dict[key][subkey][subsubkey]["GPR_onx"] = onnx_rt.InferenceSession(
                                                                                           subsubsubvalue[()], providers=["CPUExecutionProvider"]
@@ -155,7 +155,7 @@ def GPR_predict_PC(Wbin,epoch,sBV):
         ymin = NIR_temp_dict["GPR"][Wbin][PC]['ymin']
         ## locate the fitted GPR onx_string and load the onnx model
         GPR_onx = NIR_temp_dict["GPR"][Wbin][PC]["GPR_onx"] 
-        y_gp = GPR_onx.run(None, {"X": num.array([[num.float64(epoch),num.float64(sBV)]])})[0]
+        y_gp = GPR_onx.run(None, {"X": np.array([[np.float64(epoch),np.float64(sBV)]])})[0]
         ## unnormalize the predicted y using the yrange and min above
         y_gp_unnorm = y_gp * yrange + ymin #y_sigma_unnorm = y_sigma*yrange
         pred_PCs.append(y_gp_unnorm.flatten()[0])
@@ -173,7 +173,7 @@ def PCA_inverse_transform(Wbin, PC_values,PC_masks):
    '''
    PC_components = NIR_temp_dict["PCA_components"][Wbin]["components"]
    PC_masked_values = PC_values*PC_masks
-   PC_inversed = num.sum(PC_masked_values.reshape(-1,1) * PC_components,axis=0) \
+   PC_inversed = np.sum(PC_masked_values.reshape(-1,1) * PC_components,axis=0) \
                  + NIR_temp_dict["PCA_components"][Wbin]["pca_mean"]
    return PC_inversed
 
@@ -218,17 +218,17 @@ def merge_spec(wave_b,flux_b,wave_r,flux_r,interp_option=0,normalize='blue_side'
     '''
     ## converted from Eric's IDL code EYH_MERGE_SPEC
     weight_lo=0.
-    w1 = num.where(wave_b>=min(wave_r))[0]
-    w2 = num.where(wave_r<=max(wave_b))[0]
+    w1 = np.where(wave_b>=min(wave_r))[0]
+    w2 = np.where(wave_r<=max(wave_b))[0]
     if (len(w1)<2) or (len(w2)<2):
         print('WARNING! Not enough overlap')
         return
     else:
         ### decide what wavelegnth to use in the overlap region
         if interp_option ==0: ## combine the overlap wavelengths
-            wave_overlap = num.concatenate([wave_b[w1], wave_r[w2]],axis=0)
-            wave_overlap = num.sort(wave_overlap)
-            wave_overlap = num.unique(wave_overlap)
+            wave_overlap = np.concatenate([wave_b[w1], wave_r[w2]],axis=0)
+            wave_overlap = np.sort(wave_overlap)
+            wave_overlap = np.unique(wave_overlap)
         elif interp_option ==1:
             wave_overlap = wave_b[w1]
         elif interp_option ==2:
@@ -257,10 +257,10 @@ def merge_spec(wave_b,flux_b,wave_r,flux_r,interp_option=0,normalize='blue_side'
         flux_ol = 1./(weight1+weight2)*(f1_f(wave_overlap)*weight1 + f2_f(wave_overlap)*weight2)
 
         ### now combine the flux
-        w1_rest = num.where(wave_b<min(wave_r))[0]
-        w2_rest = num.where(wave_r>max(wave_b))[0]
-        wave_out = num.concatenate([wave_b[w1_rest],wave_overlap,wave_r[w2_rest]],axis=0)
-        flux_out = num.concatenate([norm_b*flux_b[w1_rest],flux_ol,norm_r*flux_r[w2_rest]],axis=0)
+        w1_rest = np.where(wave_b<min(wave_r))[0]
+        w2_rest = np.where(wave_r>max(wave_b))[0]
+        wave_out = np.concatenate([wave_b[w1_rest],wave_overlap,wave_r[w2_rest]],axis=0)
+        flux_out = np.concatenate([norm_b*flux_b[w1_rest],flux_ol,norm_r*flux_r[w2_rest]],axis=0)
 
         if plot_ax is not None:
             ax.plot(wave_b,norm_b*flux_b,'b',alpha=0.4)
@@ -285,7 +285,7 @@ def get_single_NIR_template(epoch,sBV):
     ## define some parameters
     GPR_score_threshold=0.2   ## lower limit of GPR score when selecting PC
     ## check data type and of value is in range
-    if isinstance(epoch,list) or isinstance(epoch,num.ndarray) or isinstance(sBV,list) or isinstance(sBV,num.ndarray):
+    if isinstance(epoch,list) or isinstance(epoch,np.ndarray) or isinstance(sBV,list) or isinstance(sBV,np.ndarray):
         raise ValueError('Input single value for epoch and sBV please, one at a time :)')
     else:
         if (epoch < SED_lims['H3+L'][0]) or (epoch > SED_lims['H3+L'][1]):
@@ -306,9 +306,9 @@ def get_single_NIR_template(epoch,sBV):
             # mask the PCs as 0 if the GPR for this PC is under threshold
             if GPR_score_threshold is not None:
                gp_scores = [NIR_temp_dict["GPR"][Wbin_blue][PC_key]["gp_score"] for PC_key in PC_names]
-               PC_masks_blue = num.array([1. if (score >= GPR_score_threshold) else 0. for score in gp_scores])
+               PC_masks_blue = np.array([1. if (score >= GPR_score_threshold) else 0. for score in gp_scores])
             else:
-               PC_masks_blue = num.ones(len(gp_scores))
+               PC_masks_blue = np.ones(len(gp_scores))
             flux_merged = PCA_inverse_transform(Wbin_blue, PC_values_blue,PC_masks_blue)
         # attach the next wavelength block to previous merged product
         Wbin_red = 'W'+str(i+2) 
@@ -316,9 +316,9 @@ def get_single_NIR_template(epoch,sBV):
         PC_values_red,_ = GPR_predict_PC(Wbin_red,x1,x2)
         if GPR_score_threshold is not None:
            gp_scores = [NIR_temp_dict["GPR"][Wbin_red][PC_key]["gp_score"] for PC_key in PC_names]
-           PC_masks_red = num.array([1. if (score >= GPR_score_threshold) else 0. for score in gp_scores])
+           PC_masks_red = np.array([1. if (score >= GPR_score_threshold) else 0. for score in gp_scores])
         else:
-           PC_masks_red = num.ones(len(NIR_temp_dict["GPR"][Wbin_red].keys()))
+           PC_masks_red = np.ones(len(NIR_temp_dict["GPR"][Wbin_red].keys()))
         flux_red = PCA_inverse_transform(Wbin_red, PC_values_red,PC_masks_red)
         ## merge the flux from the W bins
         wave_merged,flux_merged = merge_spec(wave_merged,flux_merged,wave_red,flux_red)
@@ -359,12 +359,12 @@ def get_SED_H3_plus_L(epoch,sBV,extrapolate=False):
     wave_hsiao,flux_hsiao = get_SED(day, version='H3')
 
     ## substitude the NIR region of H3
-    w_optical = num.where(wave_hsiao<=wave_NIR[0]+300) # set overlap region to be 200A
+    w_optical = np.where(wave_hsiao<=wave_NIR[0]+300) # set overlap region to be 200A
     wave_optical,flux_optical = wave_hsiao[w_optical],flux_hsiao[w_optical]
     # merge the optical with NIR
     wave_merged,flux_merged = merge_spec(wave_optical,flux_optical,wave_NIR,flux_NIR)
     # merge with the H3 NIR tail since L NIR template only goes to 2.33um
-    w_NIRtail = num.where(wave_hsiao>=wave_NIR[-1]-300)
+    w_NIRtail = np.where(wave_hsiao>=wave_NIR[-1]-300)
     wave_tail,flux_tail = wave_hsiao[w_NIRtail],flux_hsiao[w_NIRtail]
     wave_merged,flux_merged = merge_spec(wave_merged,flux_merged,wave_tail,flux_tail)
 
@@ -415,8 +415,8 @@ def get_SED(day, version='H3',sBV=1.0, interpolate=True, extrapolate=False):
       else:
          return (None,None)
 
-   day1 = int(num.floor(day))
-   day2 = int(num.ceil(day))
+   day1 = int(np.floor(day))
+   day2 = int(np.ceil(day))
    if version == 'H':
       return (h_wav, 
             linterp(h_sed[day1+20,:],h_sed[day2+20,:],day1,day2,day))
@@ -435,7 +435,7 @@ def get_SED(day, version='H3',sBV=1.0, interpolate=True, extrapolate=False):
       raise AttributeError("version %s not recognized" % version)
 
 def redden(wave, flux, ebv_gal, ebv_host, z, R_gal=3.1, R_host=3.1,
-      redlaw='ccm', strict_ccm=False):
+      redlaw='ccm', strict_ccm=False, redlaw_gal=None, redlaw_host=None):
    '''Artificially redden the spectral template to simulate dust reddening, a la
    Cardelli et al.
    
@@ -451,21 +451,31 @@ def redden(wave, flux, ebv_gal, ebv_host, z, R_gal=3.1, R_host=3.1,
                       frame extinction.
       redlaw (str): Form of the dust extinction curve. Possible values are
                     'ccm', 'f99', or 'fm07'. See :mod:`snpy.utils.deredden`.
+                    Used for both components unless overridden below.
+      redlaw_gal (str or None): Extinction curve for the Milky Way (foreground)
+                    component. If None, ``redlaw`` is used.
+      redlaw_host (str or None): Extinction curve for the host-galaxy
+                    component. If None, ``redlaw`` is used.
    
    Returns:
       float array: reddened flux.
    '''
 
+   if redlaw_gal is None:
+      redlaw_gal = redlaw
+   if redlaw_host is None:
+      redlaw_host = redlaw
+
    #First we redden due to galactic extinction:
    newflux = 1.0*flux
    # ebv_host is in the frame of the SN
    if ebv_host != 0:
-      newflux,a,b = deredden.unred(wave, flux, -ebv_host, R_host,redlaw=redlaw,
-            strict_ccm=strict_ccm)
+      newflux,a,b = deredden.unred(wave, flux, -ebv_host, R_host,
+            redlaw=redlaw_host, strict_ccm=strict_ccm)
    # ebv_gal is in the frame of the observer
    if ebv_gal != 0:
       newflux,a,b = deredden.unred(wave, newflux, -ebv_gal, R_gal, z, 
-            redlaw=redlaw, strict_ccm=strict_ccm)
+            redlaw=redlaw_gal, strict_ccm=strict_ccm)
 
    return(newflux)
 
@@ -505,7 +515,7 @@ def K(wave, spec, f1, f2, z, photons=1):
       # Finally calculate the cross-band K Correction
       # Since we blueshift the spectrum (instead of redshift the filter)
       # the sign of the 2.5 is now positive
-      kf1f2 =  2.5*num.log10(1+z) + 2.5*num.log10(f1flux_0/f2flux_z) - \
+      kf1f2 =  2.5*np.log10(1+z) + 2.5*np.log10(f1flux_0/f2flux_z) - \
                zpt1 + zpt2
       return (kf1f2, 1)
 
@@ -536,7 +546,7 @@ def S(wave, spec, f1, f2, z):
    mag1 = f1.synth_mag(wave, spec, z=z)
    mag2 = f2.synth_mag(wave, spec, z=z)
 
-   if num.isnan(mag1) or num.isnan(mag2):
+   if np.isnan(mag1) or np.isnan(mag2):
       # Something clearly went wrong
       return (0.0, 0)
    else:
@@ -544,7 +554,8 @@ def S(wave, spec, f1, f2, z):
       return (S, 1)
 
 def kcorr(days, filter1, filter2, z, sBV=1.0, ebv_gal=0, ebv_host=0, R_gal=3.1, 
-      R_host=3.1, version="H3", photons=1, Scorr=False, extrapolate=False):
+      R_host=3.1, version="H3", photons=1, Scorr=False, extrapolate=False,
+      redlaw='ccm', redlaw_gal=None, redlaw_host=None):
    '''Find the cross-band k-correction for a series of type Ia SED from
    SNooPy's catalog. These can be thought of as "empirical" K-corrections.
    
@@ -588,7 +599,7 @@ def kcorr(days, filter1, filter2, z, sBV=1.0, ebv_gal=0, ebv_host=0, R_gal=3.1,
    for day in days:
       if version != 'H3+L':
           day = int(day)
-      spec_wav,spec_f = get_SED(day, version, extrapolate=extrapolate)
+      spec_wav,spec_f = get_SED(day, version, sBV=sBV, extrapolate=extrapolate)
       if spec_wav is None:
          # print "Warning:  no spectra for day %d, setting Kxy=0" % day
          kcorrs.append(0.0)
@@ -597,7 +608,8 @@ def kcorr(days, filter1, filter2, z, sBV=1.0, ebv_gal=0, ebv_host=0, R_gal=3.1,
 
       # Do the reddening, if required
       if ebv_gal > 0 or ebv_host > 0:
-         sp_f = redden(spec_wav, spec_f, ebv_gal, ebv_host, z, R_gal, R_host)
+         sp_f = redden(spec_wav, spec_f, ebv_gal, ebv_host, z, R_gal, R_host,
+               redlaw=redlaw, redlaw_gal=redlaw_gal, redlaw_host=redlaw_host)
       else:
          sp_f = spec_f
 
@@ -653,12 +665,12 @@ def kcorr_mangle2(waves, spectra, filts, mags, m_mask, restfilts, z,
       if filter1 not in filters.fset:
          raise AttributeError("filter %s not defined in filters module" % filter1)
 
-   if len(num.shape(waves)) < 2:
+   if len(np.shape(waves)) < 2:
       scalar = 1
-      waves = num.array([waves])
-      spectra = num.array([spectra])
-      mags = num.array([mags])
-      m_mask = num.array([m_mask])
+      waves = np.array([waves])
+      spectra = np.array([spectra])
+      mags = np.array([mags])
+      m_mask = np.array([m_mask])
    else:
       scalar = 0
 
@@ -682,7 +694,7 @@ def kcorr_mangle2(waves, spectra, filts, mags, m_mask, restfilts, z,
       else:
          #cs = num.compress(m_mask[j],mags[j])[0:-1] - \
          #      num.compress(m_mask[j],mags[j])[1:]
-         ms = num.compress(m_mask[j],mags[j])
+         ms = np.compress(m_mask[j],mags[j])
  
          # Now we mangle the spectrum:
          man_spec_f,state,pars = mangle_spectrum2(spec_wav*(1+z),spec_f,fs, 
@@ -706,8 +718,8 @@ def kcorr_mangle2(waves, spectra, filts, mags, m_mask, restfilts, z,
          else:
             kcorrs[-1].append(0)
             mask[-1].append(0)
-   kcorrs = num.array(kcorrs)
-   mask = num.array(mask)
+   kcorrs = np.array(kcorrs)
+   mask = np.array(mask)
 
    if full_output:
       if scalar:
@@ -722,7 +734,7 @@ def kcorr_mangle2(waves, spectra, filts, mags, m_mask, restfilts, z,
 
 def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3', 
       colorfilts=None, full_output=0, mepoch=False, Scorr=False, 
-      extrapolate=False, **mopts):
+      extrapolate=False, redlaw='ccm', redlaw_gal=None, redlaw_host=None, **mopts):
    '''Compute (cross-)band K-corrections with "mangling" using built-in library
    of spectral SEDs. The SEDs are first multiplied by a smooth spline such that
    the synthetic colors match the observed colors.
@@ -791,20 +803,20 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
              day = int(days[j])
          else:
              day = days[i]
-         s,f = get_SED(day, version, extrapolate=extrapolate)
+         s,f = get_SED(day, version, sBV=sBV, extrapolate=extrapolate)
          if s is None:
-            spec_wavs.append(num.arange(980.,24981.0,10.))
-            spec_fs.append(num.zeros((2401,), dtype=num.float64))
+            spec_wavs.append(np.arange(980.,24981.0,10.))
+            spec_fs.append(np.zeros((2401,), dtype=np.float64))
             sids.append(False)
          else:
             spec_wavs.append(s)
             spec_fs.append(f)
             sids.append(True)
-      spec_wavs = num.array(spec_wavs)
-      spec_fs = num.array(spec_fs)
-      sids = num.array(sids)
+      spec_wavs = np.array(spec_wavs)
+      spec_fs = np.array(spec_fs)
+      sids = np.array(sids)
       fs = [colorfilts[i] for i in range(len(colorfilts)) \
-            if num.any(m_mask[:,i])]
+            if np.any(m_mask[:,i])]
       if len(fs) <=1 :
          waves,man_spec_fs,factors = spec_wavs,spec_fs,spec_wavs*0.0+1.0
          state,pars = None,None
@@ -813,8 +825,8 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
          #gids = m_mask[:,:-1]*m_mask[:,1:]
          #gids = gids*sids[:,num.newaxis]
          #cs[-gids] = 99.9   # flag invalid value
-         gids = m_mask*sids[:,num.newaxis]
-         ms = where(gids, ms, 99.9)
+         gids = m_mask*sids[:,np.newaxis]
+         ms = np.where(gids, mags, 99.9)
          man_spec_fs,state,pars = mangle_spectrum2(spec_wavs*(1+z),
                spec_fs, fs, ms, **mopts)
 
@@ -823,8 +835,8 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
          kcorrs.append([])
          mask.append([])
          if not sids[j]:
-            kcorrs[-1] = num.zeros((len(filts),), dtype=num.float32)
-            mask[-1] = num.zeros((len(filts),), dtype=num.int8)
+            kcorrs[-1] = np.zeros((len(filts),), dtype=np.float32)
+            mask[-1] = np.zeros((len(filts),), dtype=np.int8)
             Rts.append(kcorrs[-1] - 1.0)
             m_opts.append(None)
             continue
@@ -845,9 +857,10 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
              else:
                 k,f = K(spec_wavs[j], man_spec_fs[j], f1, f2, z)
              kcorrs[-1].append(k)
-             mask[-1].append(0)
+             mask[-1].append(f)
          Rts.append(R_obs_spectrum(filts, spec_wavs[j], man_spec_fs[j], z, 
-            0.01, 0.0))
+            0.01, 0.0, redlaw=redlaw, redlaw_gal=redlaw_gal,
+            redlaw_host=redlaw_host))
    else:
       for j in range(len(days)):
          kcorrs.append([])
@@ -856,11 +869,11 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
              day = int(days[j])
          else:
              day = days[j]
-         spec_wav,spec_f = get_SED(day, version, extrapolate=extrapolate)
+         spec_wav,spec_f = get_SED(day, version, sBV=sBV, extrapolate=extrapolate)
          if spec_wav is None:
             # print "Warning:  no spectra for day %d, setting Kxy=0" % day
-            kcorrs[-1] = num.zeros((len(filts),), dtype=num.float32)
-            mask[-1] = num.zeros((len(filts),), dtype=num.int8)
+            kcorrs[-1] = np.zeros((len(filts),), dtype=np.float32)
+            mask[-1] = np.zeros((len(filts),), dtype=np.int8)
             Rts.append(kcorrs[-1] - 1.0)
             m_opts.append(None)
             continue
@@ -875,7 +888,7 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
          else:
             #cs = num.compress(m_mask[j],mags[j])[0:-1] - \
             #     num.compress(m_mask[j],mags[j])[1:]
-            ms = num.compress(m_mask[j], mags[j])
+            ms = np.compress(m_mask[j], mags[j])
             if debug:
                print("filters and colors for day %f:" % (days[j]))
                print(fs)
@@ -917,15 +930,15 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
             kcorrs[-1].append(k)
             mask[-1].append(f)
          Rts.append(R_obs_spectrum(filts, spec_wav, man_spec_f[0], z, 0.01, 
-            0.0))
-   Rts = num.array(Rts)
-   gids = num.greater(Rts, 0)
-   Rtave = num.array([num.average(num.compress(gids[:,k], Rts[:,k])) \
+            0.0, redlaw=redlaw, redlaw_gal=redlaw_gal, redlaw_host=redlaw_host))
+   Rts = np.array(Rts)
+   gids = np.greater(Rts, 0)
+   Rtave = np.array([np.average(np.compress(gids[:,k], Rts[:,k])) \
          for k in range(len(gids[0]))])
-   Rts = num.array([num.where(gids[i], Rts[i], Rtave) for i in range(len(gids))])
+   Rts = np.array([np.where(gids[i], Rts[i], Rtave) for i in range(len(gids))])
 
-   kcorrs = num.array(kcorrs)
-   mask = num.array(mask)
+   kcorrs = np.array(kcorrs)
+   mask = np.array(mask)
 
    if not full_output:
       return(kcorrs,mask)
@@ -934,7 +947,7 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
 
 def R_obs_abc(filter1, filter2, filter3, z, days, EBVhost, EBVgal, 
       Rv_host=3.1, Rv_gal=3.1, version='H', redlaw='f99', strict_ccm=False,
-      extrapolate=False):
+      extrapolate=False, redlaw_gal=None, redlaw_host=None):
    '''Compute the observed value of the selective-to-total extinction, R,
    by applying an extinction curve to a set of library Ia spectral SEDs and
    computing synthetic photometry:
@@ -977,9 +990,10 @@ def R_obs_abc(filter1, filter2, filter3, z, days, EBVhost, EBVgal,
       spec_wav,spec_f = get_SED(int(day), version, extrapolate=extrapolate)
       if spec_wav is None:
          Rs.append(99.9)
-      # Redden the spectrum based on Cardelli et al. and assumed EBVgal + EBVhost
+         continue
       red_f = redden(spec_wav, spec_f, EBVgal, EBVhost, z, Rv_gal, Rv_host,
-            redlaw=redlaw, strict_ccm=strict_ccm)
+            redlaw=redlaw, strict_ccm=strict_ccm, redlaw_gal=redlaw_gal,
+            redlaw_host=redlaw_host)
       for filter in [filter1,filter2,filter3]:
          if filter not in filters.fset:
             raise AttributeError("filter %s not defined in filters module" % filter)
@@ -992,17 +1006,18 @@ def R_obs_abc(filter1, filter2, filter3, z, days, EBVhost, EBVgal,
             resp[filter] = filters.fset[filter].response(spec_wav, spec_f, z=z)
             resp_red[filter] = filters.fset[filter].response(spec_wav, red_f, z=z)
  
-      A1 = -2.5*num.log10(resp_red[filter1]/resp[filter1])
-      A2 = -2.5*num.log10(resp_red[filter2]/resp[filter2])
-      A3 = -2.5*num.log10(resp_red[filter3]/resp[filter3])
+      A1 = -2.5*np.log10(resp_red[filter1]/resp[filter1])
+      A2 = -2.5*np.log10(resp_red[filter2]/resp[filter2])
+      A3 = -2.5*np.log10(resp_red[filter3]/resp[filter3])
       Rs.append(A1/(A2 - A3))
    if outarr:
-      return(num.array(Rs))
+      return(np.array(Rs))
    else:
       return(Rs[0])
 
 def A_obs(filter, z, days, EBVhost, EBVgal, Rv_host=3.1, Rv_gal=3.1, 
-      version='H3'):
+      version='H3', extrapolate=False, redlaw='ccm', redlaw_gal=None,
+      redlaw_host=None):
    try:
       N = len(days)
       outarr = 1
@@ -1019,7 +1034,8 @@ def A_obs(filter, z, days, EBVhost, EBVgal, Rv_host=3.1, Rv_gal=3.1,
          Rs.append(99.9)
          continue
       # rEDDEN the spectrum based on Cardelli et al. and assumed EBVgal+EBVhost
-      red_f = redden(spec_wav, spec_f, EBVgal, EBVhost, z, Rv_gal, Rv_host)
+      red_f = redden(spec_wav, spec_f, EBVgal, EBVhost, z, Rv_gal, Rv_host,
+            redlaw=redlaw, redlaw_gal=redlaw_gal, redlaw_host=redlaw_host)
 
       if filter not in filters.fset:
          raise AttributeError("filter %s not defined in filters module" % filter)
@@ -1028,18 +1044,23 @@ def A_obs(filter, z, days, EBVhost, EBVgal, Rv_host=3.1, Rv_gal=3.1,
       resp = filters.fset[filter].response(spec_wav, spec_f, z=z, photons=1)
       resp_red = filters.fset[filter].response(spec_wav, red_f, z=z, photons=1)
  
-      As.append(-2.5*num.log10(resp_red/resp))
+      As.append(-2.5*np.log10(resp_red/resp))
    if outarr:
-      return(num.array(As))
+      return(np.array(As))
    else:
       return(As[0])
 
 def R_obs(filter, z, days, EBVhost, EBVgal, Rv_host=3.1, Rv_gal=3.1, 
-      version='H', redlaw='f99', strict_ccm=False, extrapolate=False):
+      version='H', redlaw='f99', strict_ccm=False, extrapolate=False,
+      redlaw_gal=None, redlaw_host=None):
    '''Compute the 'true' value of R based on a fiducial value of Rv for both Galactic and
    host extinction and the SED of a supernova.  The filter is such that:
 
       A(filter) = R(filter)*E(B-V).
+
+   ``redlaw`` sets the curve for both components; ``redlaw_gal`` and
+   ``redlaw_host`` override it for the Milky Way and host components
+   respectively (default: use ``redlaw``).
    '''
    try:
       N = len(days)
@@ -1058,7 +1079,8 @@ def R_obs(filter, z, days, EBVhost, EBVgal, Rv_host=3.1, Rv_gal=3.1,
          continue
       # rEDDEN the spectrum based on Cardelli et al. and assumed EBVgal + EBVhost
       red_f = redden(spec_wav, spec_f, EBVgal, EBVhost, z, Rv_gal, Rv_host,
-            redlaw=redlaw, strict_ccm=strict_ccm)
+            redlaw=redlaw, strict_ccm=strict_ccm, redlaw_gal=redlaw_gal,
+            redlaw_host=redlaw_host)
 
       if filter not in filters.fset:
          raise AttributeError("filter %s not defined in filters module" % filter)
@@ -1067,28 +1089,30 @@ def R_obs(filter, z, days, EBVhost, EBVgal, Rv_host=3.1, Rv_gal=3.1,
       resp = filters.fset[filter].response(spec_wav, spec_f, z=z, photons=1)
       resp_red = filters.fset[filter].response(spec_wav, red_f, z=z, photons=1)
  
-      A_obs = -2.5*num.log10(resp_red/resp)
+      A_obs = -2.5*np.log10(resp_red/resp)
       Rs.append(A_obs/(EBVhost + EBVgal))
    if outarr:
-      return(num.array(Rs))
+      return(np.array(Rs))
    else:
       return(Rs[0])
 
 def R_obs_spectrum(filts, wave, flux, z, EBVgal, EBVhost, Rv_gal=3.1, 
-      Rv_host=3.1, redlaw='f99', strict_ccm=False):
+      Rv_host=3.1, redlaw='f99', strict_ccm=False, redlaw_gal=None,
+      redlaw_host=None):
    '''Compute the 'true' value of R based on a fiducial value of Rv for both Galactic and
    host extinction and the SED given by wave,flux for each filter in filters.  The filter 
    is such that: A(filter) = R(filter)*E(B-V).'''
 
    Rs = []
-   if len(num.shape(filts)) == 0:
+   if len(np.shape(filts)) == 0:
       outarr = 0
    else:
       outarr = 1
 
    # redden the spectrum based on EBVhost and EBVgal:
    red_f = redden(wave, flux, EBVgal, EBVhost, z=z, R_gal=Rv_gal, 
-         R_host=Rv_host, redlaw=redlaw, strict_ccm=strict_ccm)
+         R_host=Rv_host, redlaw=redlaw, strict_ccm=strict_ccm,
+         redlaw_gal=redlaw_gal, redlaw_host=redlaw_host)
 
    # Compute absoption in each filter:
    for filter in filts:
@@ -1100,11 +1124,11 @@ def R_obs_spectrum(filts, wave, flux, z, EBVgal, EBVhost, Rv_gal=3.1,
       resp = filters.fset[filter].response(wave, flux, z=z, photons=1)
       resp_red = filters.fset[filter].response(wave, red_f, z=z, photons=1)
  
-      A_obs = -2.5*num.log10(resp_red/resp)
+      A_obs = -2.5*np.log10(resp_red/resp)
       #Rs.append(A_obs/EBV_obs)
       Rs.append(A_obs/(EBVgal + EBVhost))
    if outarr:
-      return(num.array(Rs))
+      return(np.array(Rs))
    else:
       return(Rs[0])
 

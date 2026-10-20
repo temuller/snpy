@@ -23,7 +23,7 @@ import types
 import time
 from . import plot_sne_mpl as plotmod
 from .lc import lc           # the light-curve class
-from numpy import *       # Vectors
+import numpy as np       # Vectors
 from . import ubertemp             # a template class that contains these two
 from . import kcorr                # Code for generating k-corrections
 from . import bolometric
@@ -235,10 +235,18 @@ class sn(object):
          return None
 
       if name == 'redlaw':
-         return 'ccm'
+         return self.__dict__.get('_redlaw', 'ccm')
+      if name == 'redlaw_gal':
+         return self.__dict__.get('_redlaw_gal', 'ccm')
       raise AttributeError("Error:  attribute %s not defined" % (name))
 
    def __setattr__(self, name, value):
+      if name == 'redlaw':
+         self.__dict__['_redlaw'] = value
+         return
+      if name == 'redlaw_gal':
+         self.__dict__['_redlaw_gal'] = value
+         return
       if 'model' in self.__dict__:
          if name in self.__dict__['model'].parameters:
             self.__dict__['model'].parameters[name] = value
@@ -252,9 +260,9 @@ class sn(object):
       res = set(self.data.keys()) == set(other.data.keys())
       if not res:
          return False
-      res = res and (abs(self.ra - other.ra) < 1e-7)
-      res = res and (abs(self.decl - other.decl) < 1e-7)
-      res = res and (abs(self.z - other.z) < 1e-9)
+      res = res and (np.abs(self.ra - other.ra) < 1e-7)
+      res = res and (np.abs(self.decl - other.decl) < 1e-7)
+      res = res and (np.abs(self.z - other.z) < 1e-9)
       for f in list(self.data.keys()):
          res = res and (self.data[f] == other.data[f])
       return res
@@ -330,34 +338,34 @@ class sn(object):
       ret_data = {}
       # First, we make a list of observation dates from all the bands.
       times = [self.data[band].MJD for band in bands]
-      times = sort(concatenate(times))
+      times = np.sort(np.concatenate(times))
 
       # Create bin boundaries
-      tbins = arange(times.min()+dt*0.5, times.max()+dt, dt) 
-      bids = searchsorted(tbins, times)
+      tbins = np.arange(times.min()+dt*0.5, times.max()+dt, dt) 
+      bids = np.searchsorted(tbins, times)
       # Compute mean time in each bin. Empty bins will be assigned 'nan'
       with warnings.catch_warnings():
          warnings.filterwarnings('ignore', message=".*Mean of empty slice.*")
          warnings.filterwarnings('ignore', message=".*invalid value*")
-         times = array([mean(times[bids == i]) for i in range(len(tbins))])
-         gids = ~isnan(times)
+         times = np.array([np.mean(times[bids == i]) for i in range(len(tbins))])
+         gids = ~np.isnan(times)
       # Now we deal with edge cases: due to sparse sampling, you can get
       # bins separatedma/def 
 
       ret_data['MJD'] = times[gids]
       # Now loop through the bands and see where we need to fill in data
       for band in bands:
-         bids = searchsorted(tbins, self.data[band].MJD)
+         bids = np.searchsorted(tbins, self.data[band].MJD)
          temp1 = 0.0*tbins + 99.9
          temp2 = 0.0*tbins + 9.9
          for i in range(len(tbins)):
-            ggids = equal(bids, i)
-            if sum(ggids) > 0:
+            ggids = np.equal(bids, i)
+            if np.sum(ggids) > 0:
                fs = self.data[band].flux[ggids]
-               ws = power(self.data[band].e_flux[ggids],-2)
-               af = sum(fs*ws)/sum(ws)
-               ef = sqrt(1.0/sum(ws))
-               temp1[i] = -2.5*log10(af) + self.data[band].filter.zp
+               ws = np.power(self.data[band].e_flux[ggids],-2)
+               af = np.sum(fs*ws)/np.sum(ws)
+               ef = np.sqrt(1.0/np.sum(ws))
+               temp1[i] = -2.5*np.log10(af) + self.data[band].filter.zp
                temp2[i] = 1.087*ef/af
          ret_data[band] = temp1[gids]
          ret_data["e_"+band] = temp2[gids]
@@ -369,7 +377,7 @@ class sn(object):
             fp = outfile
          else:
             raise TypeError("outfile must be a file name or file handle")
-         JDlen = len(str(int(mean(ret_data['MJD'])))) + 3
+         JDlen = len(str(int(np.mean(ret_data['MJD'])))) + 3
          title = "MJD" + " "*(JDlen+2)
          for b in bands:  title += "%5s +/-   " % b
          print(title, file=fp)
@@ -431,21 +439,21 @@ class sn(object):
          Tmax = 0
 
       t,BV,eBV,flags = self.get_color(Bband, Vband, interp=interpolate)
-      gids = less(flags, 2) 
+      gids = np.less(flags, 2) 
 
       interp = Interpolator(method, t[gids], BV[gids], eBV[gids], **args)
 
       tmaxs,maxs,dirs = interp.find_extrema()
 
       if plot:
-         ts = linspace(t[gids].min(), t[gids].max(), 100)
+         ts = np.linspace(t[gids].min(), t[gids].max(), 100)
          ys = interp(ts)[0]
 
-      nids = less(dirs, 0)   # concave-down (i.e., maxima)
-      if not any(nids):
+      nids = np.less(dirs, 0)   # concave-down (i.e., maxima)
+      if not np.any(nids):
          return None,None
 
-      idx = argmax(maxs[nids])  # take the true maximum
+      idx = np.argmax(maxs[nids])  # take the true maximum
 
       tBVmax = tmaxs[nids][idx]
 
@@ -456,25 +464,25 @@ class sn(object):
          interp.draw()
          btmaxs,bmaxs,bdirs = interp.find_extrema()
          if plot: yys.append(interp(ts)[0])
-         if len(bdirs) == len(dirs) and all(bdirs == dirs):
+         if len(bdirs) == len(dirs) and np.all(bdirs == dirs):
             # same maxima
             tBVmaxs.append(btmaxs[nids][idx])
          else:
-            bnids = less(bdirs, 0)
-            if any(bnids):
-               bidx = argmax(bmaxs[bnids])
-               if absolute(btmaxs[bnids][bidx] - tBVmax) < 10.0:
+            bnids = np.less(bdirs, 0)
+            if np.any(bnids):
+               bidx = np.argmax(bmaxs[bnids])
+               if np.absolute(btmaxs[bnids][bidx] - tBVmax) < 10.0:
                   tBVmaxs.append(btmaxs[bnids][bidx])
       # Do the stats
       if len(tBVmaxs) < Nboot:
          print("Warning, {}% of iterations failed".format(
             (Nboot - len(tBVmaxs))/Nboot*100))
 
-      stBVmax = std(tBVmaxs)
+      stBVmax = np.std(tBVmaxs)
       sBV = (tBVmax - Tmax)/(1+self.z)/30.0
       e_sBV = stBVmax/(1+self.z)/30.0
       if plot:
-         eys = std(array(yys), axis=0)
+         eys = np.std(np.array(yys), axis=0)
          plotmod.plot_sBV(self, t[gids], BV[gids], eBV[gids], tBVmax, stBVmax, 
                ts, ys, eys, Tmax)
 
@@ -530,44 +538,44 @@ class sn(object):
          BV = BV - (A_B - A_V)
 
       # find all points that have data in both bands
-      gids = equal(flag, 0)
+      gids = np.equal(flag, 0)
       # If we're allowed to interpolate, add flag=1
       if interpolate:
-         gids = gids + equal(flag, 1)
+         gids = gids + np.equal(flag, 1)
 
       # Now apply a time criterion
-      gids = gids*greater_equal(t-Tmax, tmin)*less_equal(t-Tmax, tmax)
+      gids = gids*np.greater_equal(t-Tmax, tmin)*np.less_equal(t-Tmax, tmax)
 
       # Now check that we actually HAVE some data left
-      if not any(gids):
+      if not np.any(gids):
          raise RuntimeError("Sorry, no data available between t=%f and t=%f" % (tmin,tmax)) 
       
       # extract the data we want and convert to Vmax epochs
-      t2 = compress(gids, (t-Tmax)/(1+self.z))
-      BV2 = compress(gids, BV)
-      eBV2 = compress(gids, eBV)
+      t2 = np.compress(gids, (t-Tmax)/(1+self.z))
+      BV2 = np.compress(gids, BV)
+      eBV2 = np.compress(gids, eBV)
       
       # Next, solve for a linear fit (as diagnostic)
-      w = power(eBV2,-2)
+      w = np.power(eBV2,-2)
       c,ec = fit_poly.fitpoly(t2, BV2, w=w, k=1, x0=55.0)
-      rchisq = sum(power(BV2 - c[0] - c[1]*(t2-55.),2)*w)/(len(BV2) - 2)
-      ec = ec*sqrt(rchisq)
+      rchisq = np.sum(np.power(BV2 - c[0] - c[1]*(t2-55.),2)*w)/(len(BV2) - 2)
+      ec = ec*np.sqrt(rchisq)
 
       if B14:
          st = getattr(self, 'st', 1.0)
          lira_BV = 0.78 - (0.0097 - 0.004*(st-1))*(t2 - 45.)
       else:
          lira_BV = 0.732 - 0.0095*(t2 - 55.0)
-      w = power(eBV2,-2)
-      lira_EBV = sum((BV2 - lira_BV)*w)/sum(w)
-      e_lira_EBV = power(sum(w), -0.5)
+      w = np.power(eBV2,-2)
+      lira_EBV = np.sum((BV2 - lira_BV)*w)/np.sum(w)
+      e_lira_EBV = np.power(np.sum(w), -0.5)
       if B14:
-         e_lira_EBV = sqrt(power(e_lira_EBV,2) + 0.04**2)
+         e_lira_EBV = np.sqrt(np.power(e_lira_EBV,2) + 0.04**2)
 
       print("Vmax occurred at %f" % (t_maxes[0]))
       print("Slope of (B-V) vs. t-Tvmax was %f(%f)" % (c[1], ec[1]))
       print("median E(B-V) = %f    1.49*mad(E(B-V)) = %f" % (lira_EBV, e_lira_EBV))
-      if absolute(c[1] + 0.0118) > 3*ec[1]:
+      if np.absolute(c[1] + 0.0118) > 3*ec[1]:
          print("WARNING:  fit slope differs from Lira Law by more than three sigma")
 
       if plot:
@@ -614,8 +622,8 @@ class sn(object):
             raise ValueError("Error:  filter %s has not been fit " % band + \
                   "with a light-curve yet, so I cannot compute it's maximum")
       N = len(bands)
-      result = (zeros(N, dtype=float32), zeros(N, dtype=float32),
-            zeros(N, dtype=float32), [""]*N)
+      result = (np.zeros(N, dtype=np.float32), np.zeros(N, dtype=np.float32),
+            np.zeros(N, dtype=np.float32), [""]*N)
       if len(model_bands) > 0:
          mod_result = self.model.get_max(model_bands, restframe=restframe,
                deredden=deredden)
@@ -632,13 +640,13 @@ class sn(object):
                print("Warning:  can't k-correct spline fits, you're getting " +\
                      "observed maxima!")
             if deredden:
-               if band in self.Robs:
-                  if type(self.Robs[band]) is type(()):
-                     R = scipy.interpolate.splev(self.data[b].Tmax, self.Robs[band])
+               if b in self.Robs:
+                  if type(self.Robs[b]) is type(()):
+                     R = scipy.interpolate.splev(self.data[b].Tmax, self.Robs[b])
                   else:
-                     R = self.parent.Robs[band]
+                     R = self.Robs[b]
                else:
-                  R = fset[band].R(wave=Ia_w, flux=Ia_f)
+                  R = fset[b].R(wave=Ia_w, flux=Ia_f)
             else:
                R = 0
 
@@ -687,7 +695,7 @@ class sn(object):
          if self.restbands[band] == band:
             # No S-correction
             self.Ss[band] = self.data[band].mag*0
-            self.Ss_mask[band] = less(self.Ss[band],1)
+            self.Ss_mask[band] = np.less(self.Ss[band],1)
             continue
          st = getattr(self, 'ks_s', 1.0)
          mopt = getattr(self, 'ks_mopts', {})
@@ -697,11 +705,13 @@ class sn(object):
             # days since Bmax in the frame of the SN
             if SED != 'H3+L':
                 days = (x - self.Tmax)/(1+self.z)/st
+            else:
+                days = (x - self.Tmax)/(1+self.z)
             days = days.tolist()
-            self.Ss[band],self.Ss_mask[band] = list(map(array,kcorr.kcorr(days, 
+            self.Ss[band],self.Ss_mask[band] = list(map(np.array,kcorr.kcorr(days, 
                self.restbands[band], band, self.z, st, self.EBVgal, 0.0,
                version=SED, Scorr=True)))
-            self.Ss_mask[band] = self.Ss_mask[band].astype(bool)
+            self.Ss_mask[band] = self.Ss_mask[band].astype(np.bool)
          else:
             self.Ss[band] = []
             self.Ss_mask[band] = []
@@ -714,8 +724,8 @@ class sn(object):
                         z=self.z)
                self.Ss[band].append(S)
                self.Ss_mask[band].append(f)
-            self.Ss[band] = array(self.Ss[band])
-            self.Ss_mask[band] = array(self.Ss_mask[band])
+            self.Ss[band] = np.array(self.Ss[band])
+            self.Ss_mask[band] = np.array(self.Ss_mask[band])
       if merge:
          self.merge_filters(bands, method='scorr')
 
@@ -755,30 +765,30 @@ class sn(object):
          if len(bs) == 0:
             continue
          lcs = [self.data[b] for b in bs]
-         MJDs = concatenate([l.MJD for l in lcs])
+         MJDs = np.concatenate([l.MJD for l in lcs])
          if method=='kcorr':
-            mags = concatenate([self.data[b].magnitude - self.ks[b] \
+            mags = np.concatenate([self.data[b].magnitude - self.ks[b] \
                   for b in bs])
-            masks = concatenate([self.data[b].mask & self.ks_mask[b] \
+            masks = np.concatenate([self.data[b].mask & self.ks_mask[b] \
                   for b in bs])
          elif method=='scorr':
-            mags = concatenate([self.data[b].magnitude - self.Ss[b] \
+            mags = np.concatenate([self.data[b].magnitude - self.Ss[b] \
                   for b in bs])
-            masks = concatenate([self.data[b].mask & self.Ss_mask[b] \
+            masks = np.concatenate([self.data[b].mask & self.Ss_mask[b] \
                   for b in bs])
          else:
-            mags = concatenate([self.data[b].magnitude for b in bs])
-            masks = ~isnan(mags)
+            mags = np.concatenate([self.data[b].magnitude for b in bs])
+            masks = ~np.isnan(mags)
 
-         emags = concatenate([l.e_mag for l in lcs])
-         SNRs = concatenate([l.SNR for l in lcs])
+         emags = np.concatenate([l.e_mag for l in lcs])
+         SNRs = np.concatenate([l.SNR for l in lcs])
          sids = []
          for l in lcs:
             if not hasattr(l, "sids"):
-               sids.append(zeros(l.mag.shape[0], dtype=int))
+               sids.append(np.zeros(l.mag.shape[0], dtype=int))
             else:
                sids.append(l.sids)
-         sids = concatenate(sids)
+         sids = np.concatenate(sids)
 
          # Book-keeping
          for b in bs:
@@ -890,10 +900,11 @@ class sn(object):
                 days = (x - self.Tmax)/(1+self.z)
             days = days.tolist()
             kextrap = getattr(self, 'k_extrapolate', False)
-            self.ks[band],self.ks_mask[band] = list(map(array,kcorr.kcorr(days, 
+            self.ks[band],self.ks_mask[band] = list(map(np.array,kcorr.kcorr(days, 
                self.restbands[band], band, self.z, self.ks_s, self.EBVgal, 0.0,
-               version=self.k_version, extrapolate=kextrap)))
-            self.ks_mask[band] = self.ks_mask[band].astype(bool)
+               version=self.k_version, extrapolate=kextrap,
+               redlaw=self.redlaw, redlaw_gal=self.redlaw_gal)))
+            self.ks_mask[band] = self.ks_mask[band].astype(np.bool)
             #self.ks_tck[band] = scipy.interpolate.splrep(x, self.ks[band], k=1, s=0)
             if len(x) > 1:
                self.ks_tck[band] = fit_spline.make_spline(x, self.ks[band], x*0+1,
@@ -902,15 +913,15 @@ class sn(object):
          return
 
       # Now see if we need to eliminate filters
-      eff_waves = array([fset[band].eff_wave(Ia_w,Ia_f) for band in mbands])
-      sids = argsort(eff_waves)
+      eff_waves = np.array([fset[band].eff_wave(Ia_w,Ia_f) for band in mbands])
+      sids = np.argsort(eff_waves)
       eff_waves = eff_waves[sids]
       mbands = [mbands[sids[i]] for i in range(len(sids))]
       dwaves = eff_waves[1:] - eff_waves[0:-1]
-      while any(less(dwaves, min_filter_sep)):
-         bids = less(dwaves, min_filter_sep)
+      while np.any(np.less(dwaves, min_filter_sep)):
+         bids = np.less(dwaves, min_filter_sep)
          mbands = [mbands[i] for i in range(len(bids)) if not bids[i]] + mbands[-1:]
-         eff_waves = array([fset[band].eff_wave(Ia_w,Ia_f) for band in mbands])
+         eff_waves = np.array([fset[band].eff_wave(Ia_w,Ia_f) for band in mbands])
          dwaves = eff_waves[1:] - eff_waves[0:-1]
       if not self.quiet:  print("Mangling based on filters:", mbands)
 
@@ -921,7 +932,7 @@ class sn(object):
       masks = []
       res = self.get_mag_table(bands)
       for band in mbands:
-         bids = greater(res[band], 90)
+         bids = np.greater(res[band], 90)
          # find where we need to interpolate:
          if use_model:
             ev,eev,ma = self.model(band, res['MJD'])
@@ -934,16 +945,16 @@ class sn(object):
             mags.append(ev)
             masks.append(ma)
          else:
-            mags.append(where(bids, 0.0, res[band]))
+            mags.append(np.where(bids, 0.0, res[band]))
             masks.append(1-bids)
 
-      mags = transpose(array(mags))
-      masks = transpose(array(masks))
+      mags = np.transpose(np.array(mags))
+      masks = np.transpose(np.array(masks))
       # don't forget to convert to rest-frame epochs!
       if self.Tmax is None:
          raise AttributeError("Error.  self.Tmax must be set in oder to compute K-correctsions")
       t = res['MJD'] - self.Tmax
-      if not any(greater_equal(t, -19)*less(t, 70)):
+      if not np.any(np.greater_equal(t, -19)*np.less(t, 70)):
          raise RuntimeError("Error:  your epochs are all outside -20 < t < 70.  Check self.Tmax")
       kextrap = getattr(self, 'k_extrapolate', False)
       if  self.k_version != 'H3+L':
@@ -953,10 +964,11 @@ class sn(object):
       kcorrs,mask,Rts,m_opts = kcorr.kcorr_mangle(use_t, bands, 
             mags, masks, restbands, self.z, sBV=s,
             colorfilts=mbands, version=self.k_version, full_output=1, 
-            extrapolate=kextrap, **mopts)
-      mask = greater(mask, 0)
-      kcorrs = array(kcorrs)
-      Rts = array(Rts)
+            extrapolate=kextrap, redlaw=self.redlaw, 
+            redlaw_gal=self.redlaw_gal, **mopts)
+      mask = np.greater(mask, 0)
+      kcorrs = np.array(kcorrs)
+      Rts = np.array(Rts)
       
       # At this point, we have k-corrections for all dates in res['MDJ']:
       #   kcorrs[i,j]  is kcorr for bands[j] on date res['MJD'][i]
@@ -969,9 +981,9 @@ class sn(object):
                           res['MJD']*0+1, k=1, s=0, task=0, 
                           tmin=res['MJD'].min(), tmax = res['MJD'].max())[0]
          self.ks[b] = scipy.interpolate.splev(self.data[b].MJD, self.ks_tck[b])
-         self.ks_mask[b] = array([mask[argmin(absolute(res['MJD'] - self.data[b].MJD[j])),i] \
-               for j in range(len(self.data[b].MJD))]).astype(bool)
-         self.ks_mopts[b] = [m_opts[argmin(absolute(res['MJD'] - self.data[b].MJD[j]))] \
+         self.ks_mask[b] = np.array([mask[np.argmin(np.absolute(res['MJD'] - self.data[b].MJD[j])),i] \
+               for j in range(len(self.data[b].MJD))]).astype(np.bool)
+         self.ks_mopts[b] = [m_opts[np.argmin(np.absolute(res['MJD'] - self.data[b].MJD[j]))] \
                for j in range(len(self.data[b].MJD))]
 
          self.Robs[b] = fit_spline.make_spline(res['MJD'], Rts[:,i],
@@ -1018,7 +1030,7 @@ class sn(object):
          return(wave*(1+self.z),man_flux,flux,man_flux/flux)
 
       # Now compute the normalizing factor
-      num = power(10,-0.4*(self.data[band].magnitude[i] -\
+      num = np.power(10,-0.4*(self.data[band].magnitude[i] -\
             self.data[band].filter.zp))
       denom = fset[band].response(wave*(1+self.z), man_flux)
       return(wave*(1+self.z),man_flux*num/denom,flux,man_flux/flux)
@@ -1092,19 +1104,19 @@ class sn(object):
       ems = []
       flags = []
       for band in bands:
-         bids = greater(data[band], 90)   # where we need to fill in
+         bids = np.greater(data[band], 90)   # where we need to fill in
          if dokcorr:
             if band not in self.ks_tck:
                raise RuntimeError("No k-corrections defined for %s.  Either set dokcorr=0 or run self.kcorr() first" % band)
             k = scipy.interpolate.splev(data['MJD'], self.ks_tck[band])
-            kflag = (less(data['MJD'],self.ks_tck[band][0][0]) &\
-                    greater(data['MJD'], self.ks_tck[band][0][-1]))*8
+            kflag = np.logical_or(np.less(data['MJD'], self.ks_tck[band][0][0]),
+                    np.greater(data['MJD'], self.ks_tck[band][0][-1]))*8
 
          else:
             k = 0
             kflag = 0
 
-         if not any(bids):
+         if not np.any(bids):
             # They all good, carry on.
             ms.append(data[band]-k)
             ems.append(data['e_'+band])
@@ -1116,37 +1128,37 @@ class sn(object):
             if model_float:
                temp,etemp,mask = self.model(band, self.data[band].MJD)
                weight = self.data[band].e_flux**2
-               weight = power(weight, -1)*mask*self.data[band].mask
+               weight = np.power(weight, -1)*mask*self.data[band].mask
                # weighted mean offset
-               offset = sum((self.data[band].mag - temp)*weight)/\
-                              sum(weight)
+               offset = np.sum((self.data[band].mag - temp)*weight)/\
+                              np.sum(weight)
                # error in mean offset  (MAD)
-               doffset = median(absolute(self.data[band].mag - \
+               doffset = np.median(np.absolute(self.data[band].mag - \
                                                      temp-offset))
             else:
                offset = 0
                doffset = 0
             temp,etemp,mask = self.model(band, data['MJD'])
-            ms.append(where(bids, temp+offset, data[band]) - k)
-            ems.append(where(bids, doffset, data['e_'+band]))
+            ms.append(np.where(bids, temp+offset, data[band]) - k)
+            ems.append(np.where(bids, doffset, data['e_'+band]))
             # IDs where valid interpolation is done
-            iids = mask & greater_equal(data['MJD'],self.data[band].MJD.min())\
-                   & less_equal(data['MJD'], self.data[band].MJD.max())
+            iids = mask & np.greater_equal(data['MJD'],self.data[band].MJD.min())\
+                   & np.less_equal(data['MJD'], self.data[band].MJD.max())
             # IDs where valid extrapolation is done
-            eids = mask & (less(data['MJD'],self.data[band].MJD.min())\
-                   | greater(data['MJD'], self.data[band].MJD.max()))
-            flags.append(where(bids, iids*1+eids*2+(~mask)*4, bids)+kflag)
+            eids = mask & (np.less(data['MJD'],self.data[band].MJD.min())\
+                   | np.greater(data['MJD'], self.data[band].MJD.max()))
+            flags.append(np.where(bids, iids*1+eids*2+(~mask)*4, bids)+kflag)
          else:
             interp = getattr(self.data[band], 'interp', None)
             if interp is None:
                raise ValueError("Error: interpolator missing for %s" % band)
             temp,mask = self.data[band].interp(data['MJD'])
             etemp = self.data[band].interp.error(data['MJD'])
-            ms.append(where(bids, temp, data[band])-k)
-            ems.append(where(bids, etemp, data['e_'+band]))
+            ms.append(np.where(bids, temp, data[band])-k)
+            ems.append(np.where(bids, etemp, data['e_'+band]))
             iids = mask
             eids = ~mask
-            flags.append(where(bids, iids*1 + eids*4, bids)+kflag)
+            flags.append(np.where(bids, iids*1 + eids*4, bids)+kflag)
 
       return (data['MJD'], ms, ems, flags)
 
@@ -1197,10 +1209,10 @@ class sn(object):
       if not interp:
          # easy
          data = self.get_mag_table([band1, band2], dt=dt)
-         gids = less(data[band1], 90) & less(data[band2], 90)
+         gids = np.less(data[band1], 90) & np.less(data[band2], 90)
          mjd = data['MJD'][gids]
          col = (data[band1] - data[band2])[gids]
-         ecol = sqrt(data['e_'+band1]**2 + data['e_'+band2]**2)[gids]
+         ecol = np.sqrt(data['e_'+band1]**2 + data['e_'+band2]**2)[gids]
          flags = gids[gids]*0
          if dokcorr:
             if band1 not in self.ks:
@@ -1209,13 +1221,13 @@ class sn(object):
                raise ValueError("band %s has no k-corrections, use self.kcorr()" % band2)
             # Now, we need to find indexes into each dataset that correspond
             #  to data['MJD']. 
-            ids1 = argmin(absolute(self.data[band1].MJD[:,newaxis] - \
-                  mjd[newaxis,:]), axis=0)
-            ids2 = argmin(absolute(self.data[band2].MJD[:,newaxis] - \
-                  mjd[newaxis,:]), axis=0)
+            ids1 = np.argmin(np.absolute(self.data[band1].MJD[:,np.newaxis] - \
+                  mjd[np.newaxis,:]), axis=0)
+            ids2 = np.argmin(np.absolute(self.data[band2].MJD[:,np.newaxis] - \
+                  mjd[np.newaxis,:]), axis=0)
             col = col - self.ks[band1][ids1] + self.ks[band2][ids2]
-            flags = flags + (logical_not(self.ks_mask[band1][ids1])*\
-                             logical_not(self.ks_mask[band2][ids2]))*8
+            flags = flags + (np.logical_not(self.ks_mask[band1][ids1])*\
+                             np.logical_not(self.ks_mask[band2][ids2]))*8
          return (mjd,col,ecol,flags)
       elif use_model and mod1 and mod2:
          MJD,ms,ems,flags = self.interp_table([band1,band2], use_model=True,
@@ -1231,9 +1243,9 @@ class sn(object):
                " models or interpolators defined")
 
       # We really don't care which one flags conditions
-      flags = bitwise_or(flags[0],flags[1])
+      flags = np.bitwise_or(flags[0],flags[1])
 
-      return(MJD, ms[0]-ms[1], sqrt(ems[0]**2 + ems[1]**2), flags)
+      return(MJD, ms[0]-ms[1], np.sqrt(ems[0]**2 + ems[1]**2), flags)
 
    def getEBVgal(self, calibration='SF11'):
       '''Gets the value of E(B-V) due to galactic extinction.  The ra and decl
@@ -1289,7 +1301,9 @@ class sn(object):
          c = getattr(cosmology, cosmo)
       except:
          raise AttributeError("Unknown cosmology specified. See astropy.cosmology")
-      if not isinstance(c, cosmology.core.Cosmology):
+      # astropy.cosmology.core is deprecated (7.1) and slated for removal;
+      # astropy.cosmology.Cosmology is the public base class.
+      if not isinstance(c, cosmology.Cosmology):
          kwargs.setdefault('H0', 74.3)
          kwargs.setdefault('Om0', 0.27)
          kwargs.setdefault('Ode0', 0.73)
@@ -1429,16 +1443,16 @@ class sn(object):
                      , self.data[filt].e_mag[i], flag), file=f)
          f.close()
          if filt in self.model._fbands:
-            ts = arange(tmin, tmax+1, 1.0)
+            ts = np.arange(tmin, tmax+1, 1.0)
             ms,e_ms,mask = self.model(filt, ts+self.Tmax)
             if k_correct and filt in self.ks_tck:
                ks = scipy.interpolate.splev(ts + self.Tmax, self.ks_tck[filt])
                # mask out valid k-corrections
-               mids = argmin(absolute(ts[:,newaxis]-\
-                     self.data[filt].MJD[newaxis,:]+\
+               mids = np.argmin(np.absolute(ts[:,np.newaxis]-\
+                     self.data[filt].MJD[np.newaxis,:]+\
                      self.Tmax), axis=1)
-               ks_mask = self.ks_mask[filt][mids]*greater_equal(ts, -19)*\
-                     less_equal(ts, 70)
+               ks_mask = self.ks_mask[filt][mids]*np.greater_equal(ts, -19)*\
+                     np.less_equal(ts, 70)
                mask = mask*ks_mask
                ms = ms - ks
             ms = ms[mask]
@@ -1455,7 +1469,7 @@ class sn(object):
          if self.data[filt].interp is not None:
             f = open(base+filt+"_smooth.dat", 'w')
             x0,x1 = self.data[filt].interp.domain()
-            ts = arange(x0, x1+1, 1.0)
+            ts = np.arange(x0, x1+1, 1.0)
             m,mask = self.data[filt].interp(ts)
             print("# column 1:  time", file=f)
             print("# column 2:  splined magnitude", file=f)
@@ -1542,10 +1556,10 @@ class sn(object):
          else:
             # Try to get max from closest filter to B
             allbands = list(self.data.keys())
-            diffs = [abs(self.data[band].filter.ave_wave-fset['B'].ave_wave) \
+            diffs = [np.abs(self.data[band].filter.ave_wave-fset['B'].ave_wave) \
                   for band in allbands]
-            B = allbands[argmin(diffs)]
-            Tmax = self.data[B].MJD[argmin(self.data[B].mag)]
+            B = allbands[np.argmin(diffs)]
+            Tmax = self.data[B].MJD[np.argmin(self.data[B].mag)]
 
       if outfile is None:
          outfile = self.name+".dat"
@@ -1670,7 +1684,7 @@ class sn(object):
             self.sql.create_SN(self.ra, self.decl, self.z)
             data = {}
             for f in self.data:
-               if dokcorr and data[f].K is not None:
+               if dokcorr and self.data[f].K is not None:
                   data[f] = [self.data[f].MJD, self.data[f].magnitude, self.data[f].e_mag,
                           self.data[f].K]
                else:
@@ -1683,9 +1697,12 @@ class sn(object):
          attr_list = ['z','ra','decl'] + list(self.parameters.keys())
          for attr in attr_list:
             try:
-               self.sql.set_SN_parameter(attr, self.__getattr__[attr])
-            except:
-               pass
+               value = getattr(self, attr)
+            except Exception:
+               continue
+            if value is None:
+               continue
+            self.sql.set_SN_parameter(attr, value)
          self.sql.close()
 
    def read_sql(self, name, spectra=False):
@@ -1724,7 +1741,7 @@ class sn(object):
             else:
                SNR = None
             self.data[filt] = lc(self, filt, d['t'], d['m'], d['em'], 
-                  K=K, SNR=SNR, sids=zeros(d['t'].shape, dtype=int))
+                  K=K, SNR=SNR, sids=np.zeros(d['t'].shape, dtype=int))
 
          if spectra:
             from .filters import spectrum
@@ -1776,8 +1793,8 @@ class sn(object):
          eff_wavs = []
          for filt in bands:
             eff_wavs.append(fset[filt].ave_wave)
-         eff_wavs = asarray(eff_wavs)
-         ids = argsort(eff_wavs)
+         eff_wavs = np.asarray(eff_wavs)
+         ids = np.argsort(eff_wavs)
          self.filter_order = [bands[i] for i in ids]
 
       offs = [0]
@@ -1885,7 +1902,8 @@ class sn(object):
       # Setup initial Robs (in case it is used by the model)
       for band in bands:
          if band not in self.Robs:
-            self.Robs[band] = fset[band].R(self.Rv_gal, Ia_w, Ia_f, z=self.z)
+            self.Robs[band] = fset[band].R(self.Rv_gal, Ia_w, Ia_f, z=self.z,
+                  redlaw=self.redlaw_gal)
 
       #if self.z <= 0:
       #   raise ValueError("The heliocentric redshift is zero.  Fix this before you fit")
@@ -2005,7 +2023,7 @@ class sn(object):
          #thiscov = self.data[band].get_covar(flux=0)
          rband = self.restbands[band]
          if len(thiscov.shape) == 1:
-            thiscov = diagflat(thiscov)
+            thiscov = np.diagflat(thiscov)
          #if self.model.model_in_mags:
          #   modcov = self.model.get_covar(rband, self.data[band].t)
          #   #modcov = modcov*outer(self.data[band].flux, self.data[band].flux)*1.087**2
@@ -2041,7 +2059,7 @@ class sn(object):
                and vinfo[par]['prior_type'] != 'nuissance':
             pars.append(par)
             samples.append(sampler.flatchain[:,vinfo[par]['index']])
-      samples = array(samples).T
+      samples = np.array(samples).T
 
       # Save the tracefile as requested
       if tracefile is not None:
@@ -2051,20 +2069,22 @@ class sn(object):
          pickle.dump(d, f)
          f.close()
          f = open(tracefile, 'w')
+         # read back by snemcee.generateSampler() to reconstruct walkers
+         f.write('# Nwalkers = %d\n' % Nwalkers)
          for i in range(len(pars)):
             f.write('# Col(%d) = %s\n' % (i+1,pars[i]))
-         savetxt(f, samples, fmt="%15.10g")
+         np.savetxt(f, samples, fmt="%15.10g")
          f.close()
       # Now that we have the samples, we can infer the median and covariance
-      meds = median(sampler.flatchain, axis=0)
-      covar = cov(sampler.flatchain.T)
+      meds = np.median(sampler.flatchain, axis=0)
+      covar = np.cov(sampler.flatchain.T)
       
       self.model.C = {}
       for par in self.model.parameters:
          if not vinfo[par]['fixed']:
             ind = vinfo[par]['index']
             self.model.parameters[par] = meds[ind]
-            self.model.errors[par] = sqrt(covar[ind,ind])
+            self.model.errors[par] = np.sqrt(covar[ind,ind])
             self.model.C[par] = {}
             for par2 in self.model.parameters:
                if not vinfo[par2]['fixed']:
@@ -2184,23 +2204,33 @@ class sn(object):
       # data
       if not interp:
          data = self.get_mag_table([band1,band2,band3])
-         gids = less(data[band1],90) & less(data[band2],90) & \
-               less(data[band3],90)
+         gids = np.less(data[band1],90) & np.less(data[band2],90) & \
+               np.less(data[band3],90)
+         mjd = data['MJD'][gids]
          if dokcorr:
-            k1 = self.ks[band1][gids]
-            k2 = self.ks[band2][gids]
-            k3 = self.ks[band3][gids]
+            ids1 = np.argmin(np.absolute(self.data[band1].MJD[:,np.newaxis] - \
+                  mjd[np.newaxis,:]), axis=0)
+            ids2 = np.argmin(np.absolute(self.data[band2].MJD[:,np.newaxis] - \
+                  mjd[np.newaxis,:]), axis=0)
+            ids3 = np.argmin(np.absolute(self.data[band3].MJD[:,np.newaxis] - \
+                  mjd[np.newaxis,:]), axis=0)
+            k1 = self.ks[band1][ids1]
+            k2 = self.ks[band2][ids2]
+            k3 = self.ks[band3][ids3]
+            kflag = (np.logical_not(self.ks_mask[band1][ids1]) | \
+                     np.logical_not(self.ks_mask[band2][ids2]) | \
+                     np.logical_not(self.ks_mask[band3][ids3]))*8
          else:
             k1 = k2 = k3 = 0
+            kflag = 0
 
-         mjd = data['MJD']
          m1 = data[band1][gids] - k1; em1 = data['e_'+band1][gids]
          m2 = data[band2][gids] - k2; em2 = data['e_'+band2][gids]
          m3 = data[band3][gids] - k3; em3 = data['e_'+band3][gids]
 
          w = m1 - R*(m2 - m3)
-         ew = sqrt(em1**2 + R**2*(em2**2 + em3**2))
-         return mjd,w,ew,logical_not(isnan(w))
+         ew = np.sqrt(em1**2 + R**2*(em2**2 + em3**2))
+         return mjd,w,ew,np.logical_not(np.isnan(w)) + kflag
 
       # Here we need interpolation
       mjd,ms,ems,flags = self.interp_table([band1,band2,band3], 
@@ -2208,7 +2238,7 @@ class sn(object):
 
       # Now compute w:
       w = ms[0] - R*(ms[1] - ms[2])
-      ew = sqrt(ems[0]**2 + R**2*(ems[1]**2 + ems[2]**2))
+      ew = np.sqrt(ems[0]**2 + R**2*(ems[1]**2 + ems[2]**2))
       flags = flags[0] | flags[1] | flags[2]
       return(mjd,w,ew,flags)
 
@@ -2331,7 +2361,8 @@ class sn(object):
       return plotmod.plot_kcorrs(self, colors, symbols)
 
    def bolometric(self, bands, method="direct", DM=None, EBVhost=None,
-         Rv=None, redlaw=None, outfile=None, extra_output=False, 
+         Rv=None, redlaw=None, redlaw_gal=None, outfile=None,
+         extra_output=False, 
          cosmo='LambdaCDM', **args):
       '''
       Produce a quasi-bolometric flux light-curve based on the input [bands]
@@ -2353,8 +2384,11 @@ class sn(object):
                              in the supernova object.
          Rv (float or None):  Value of R_V to use for the host galaxy. If None,
                              will look for parameter in the supernova object.
-         redlaw (str): The reddening law to use ('ccm','fm','etc). If None,
-                             will look up in sn model.
+         redlaw (str): The reddening law to use ('ccm','fm','etc) for the
+                              host galaxy. If None, will look up in sn model.
+         redlaw_gal (str): The reddening law to use for the Milky Way
+                              (foreground) component. If None, will look up in
+                              the supernova object (default 'ccm').
          extrap_red (str or None):  Specify how we extrapolate to 
                                      \lambda -> lam1 'RJ' specifies 
                                      Rayleigh-Jeans. None turns off 
@@ -2414,7 +2448,8 @@ class sn(object):
 
       if method == 'direct':
          fargs = {'sn':self, 'bands':bands, 'DM':DM, 'EBVhost':EBVhost,
-               'Rv':Rv, 'redlaw':redlaw, 'extra_output':False}
+               'Rv':Rv, 'redlaw':redlaw, 'redlaw_gal':redlaw_gal,
+               'extra_output':False}
          for key in ['tmin','tmax','interpolate', 'SED','Tmax']:
             fargs[key] = None
          fargs['extrap_red'] = 'RJ'
@@ -2429,7 +2464,8 @@ class sn(object):
 
       else:
          fargs = {'sn':self, 'bands':bands, 'DM':DM, 'EBVhost':EBVhost,
-               'Rv':Rv, 'redlaw':redlaw, 'extra_output':False}
+               'Rv':Rv, 'redlaw':redlaw, 'redlaw_gal':redlaw_gal,
+               'extra_output':False}
          for key in ['lam1','lam2','refband','tmin','tmax',
                'interpolate', 'SED','Tmax']:
             fargs[key] = None
@@ -2445,7 +2481,7 @@ class sn(object):
          fargs['extra_output'] = False
          myupdate(fargs,args)
          res = bolometric.bolometric_SED(**fargs)
-         if len(shape(res['boloflux'])) == 1:
+         if len(np.shape(res['boloflux'])) == 1:
             limits = [(l.min(),l.max()) for l in res['waves']]
          else:
             limits = []
@@ -2456,8 +2492,10 @@ class sn(object):
          fout = open(outfile, 'w')
          fout.write('# Bolometric luminosity for %s\n' % (self.name))
          fout.write('# Using %s method\n' % (method))
-         fout.write('# E(B-V) = %.2f, R_V = %.2f, redlaw=%s\n' % \
-               (EBVhost,Rv,redlaw))
+         fout.write('# E(B-V) = %s, R_V = %s, redlaw=%s\n' % \
+               ('%.2f' % EBVhost if EBVhost is not None else 'None',
+                '%.2f' % Rv if Rv is not None else 'None',
+                redlaw if redlaw is not None else 'None'))
          if not DM_computed:
             fout.write('# DM = %.2f\n' % (DM))
          else:
@@ -2466,7 +2504,7 @@ class sn(object):
                   (DM, self.zcmb, cosmo))
          fout.write('# Luminosities in units of 10^42 erg/s\n')
          fout.write('# Times are in *observed* frame\n')
-         if len(shape(res['boloflux'])) == 2:
+         if len(np.shape(res['boloflux'])) == 2:
             fout.write('#\n#%6s ' % 't')
             for j in range(res['boloflux'].shape[1]):
                fout.write('%8s %8s %6s ' % ('lam1','lam2','L'))
@@ -2519,14 +2557,14 @@ class sn(object):
          resps.append(fset[band].response(fset[temp].wave, fset[temp].resp,
             z=self.z, zeropad=1, photons=0)*norm/norm2)
 
-      resps = array(resps)
-      if max(resps) <= 0:
+      resps = np.array(resps)
+      if np.max(resps) <= 0:
          # all failed to overlap...  
-         dists = absolute(array([fset[temp].ave_wave - fset[band].ave_wave \
+         dists = np.absolute(np.array([fset[temp].ave_wave - fset[band].ave_wave \
                for temp in tempbands]))
-         return tempbands[argmin(dists)]
+         return tempbands[np.argmin(dists)]
       else:
-         return(tempbands[argmax(resps)])
+         return(tempbands[np.argmax(resps)])
 
 def save(instance, file):
    '''Save a super instance to a file to be loaded back later with load().'''
@@ -2641,10 +2679,10 @@ def import_lc(file):
    # Save the sources of photometry
    s.sources = sources
    for f in MJD:
-      MJD[f] = array(MJD[f])
-      mags[f] = array(mags[f])
-      emags[f] = array(emags[f])
-      sids[f] = array(sids[f])
+      MJD[f] = np.array(MJD[f])
+      mags[f] = np.array(mags[f])
+      emags[f] = np.array(emags[f])
+      sids[f] = np.array(sids[f])
       s.data[f] = lc(s, f, MJD[f], mags[f], emags[f], sids=sids[f])
       s.data[f].time_sort()
 

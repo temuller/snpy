@@ -10,22 +10,22 @@ except:
    haveastropy = pytest.mark.skipif(True, reason="astropy not installed")
 
 @pytest.fixture
-def snobj():
+def snobj(datadir):
    import snpy
-   return snpy.get_sn('SN2006ax.txt')
+   return snpy.get_sn(os.path.join(datadir, 'SN2006ax.txt'))
 
 def test_load_object(snobj):
    from snpy import sn
    assert isinstance(snobj,sn)
 
-def test_object_equality(snobj):
+def test_object_equality(snobj, datadir):
    from snpy import get_sn
-   sn2 = get_sn('SN2006ax.txt')
+   sn2 = get_sn(os.path.join(datadir, 'SN2006ax.txt'))
    assert sn2 == snobj
 
-def test_sn_inequality(snobj):
+def test_sn_inequality(snobj, datadir):
    from snpy import get_sn
-   sn2 = get_sn('SN2006ax.txt')
+   sn2 = get_sn(os.path.join(datadir, 'SN2006ax.txt'))
    sn2.B.MJD[0] += 0.1
    assert sn2 != snobj
 

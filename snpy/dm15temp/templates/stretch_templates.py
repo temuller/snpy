@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
-from fit_lightcurves import *
-from pygplot import *
-import numpy as num
+import sys
+# fit_lightcurves also provides a `super` class which shadows the builtin
+from fit_lightcurves import columns, super
+import numpy as np
 
 f = open('stretch.dat','w')
 
@@ -19,11 +20,11 @@ for name in sys.argv[1:]:
       s.data[bands[i]]['mag'] = data[i+1]
       s.data[bands[i]]['e_mag'] = data2[i+1]
 
-   s.mask['B'] = num.greater(s.data['B']['MJD'], 0)
+   s.mask['B'] = np.greater(s.data['B']['MJD'], 0)
    s.z = 0
    s.get_restbands()
    s.s = 1
-   gids = num
+   gids = np
    s.fit(['B'], dm15=1.1, EBVhost=0, Tmax=0)
    
    print(name, s.s, file=f)

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 import sys,os,string
-from numpy import *
-from scipy.interpolate import *
+import numpy as np
+from scipy.interpolate import bisplev
 from myplotlib import PanelPlot
 from matplotlib import pyplot
 import pickle
@@ -24,7 +24,7 @@ t_low = -10.0
 t_high = 70
 
 dm15s = [0.9, 1.1, 1.3, 1.5, 1.7, 1.9]
-ts = arange(81)/80.0*(t_high - t_low) + t_low
+ts = np.arange(81)/80.0*(t_high - t_low) + t_low
 
 #mp = PanelPlot(3,3)
 mp2 = PanelPlot(3,3)
@@ -43,14 +43,14 @@ for j in range(len(bands)):
       z0 = bisplev(ts, dm15s[k], tck0)[:,0]
       for i in range(len(tcks)):
          z1 = bisplev(ts, dm15s[k], tcks[i])[:,0]
-         if any(absolute(z1 - z0) > 0.15):
+         if np.any(np.absolute(z1 - z0) > 0.15):
             continue
          dzs.append(z1 - z0)
          if k == 1:
             mp2.axes[j].plot(ts, dzs[-1], color='0.65')
-      dzs = array(dzs)
-      rms = sqrt(mean(power(dzs, 2), axis=0))
-      mads = median(absolute(dzs), axis=0)
+      dzs = np.array(dzs)
+      rms = np.sqrt(np.mean(np.power(dzs, 2), axis=0))
+      mads = np.median(np.absolute(dzs), axis=0)
       #mp.axes[j].plot(ts, 1.49*mads, '-', label='%.1f' % (dm15s[k]))
       if k == 1:
          mp2.axes[j].plot(ts, rms, '-', color='red', linewidth=2)

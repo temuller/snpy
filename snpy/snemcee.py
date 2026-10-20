@@ -62,12 +62,17 @@ def setup_varinfo(snobj, args):
    for var in varinfo['varlist']:
       varinfo[var] = {}
       if var in args:
-         if type(args[var]) is bytes:
+         if isinstance(args[var], (str, bytes)):
+            # Under python3 a prior spec is `str` and `str` is a member of
+            # np.ScalarType, so strings have to be tested first.  Otherwise a
+            # prior like 'G,1000,10' is silently stored as a fixed value.
+            prior = args[var].decode() if isinstance(args[var], bytes) \
+                  else args[var]
             varinfo[var]['fixed'] = False
             varinfo[var]['index'] = i
             varinfo['free'].append(var)
             i += 1
-            varinfo[var]['prior'] = args[var]
+            varinfo[var]['prior'] = prior
             varinfo[var]['prior_type'] = 'builtin'
          elif type(args[var]) in np.ScalarType:
             varinfo[var]['value'] = args[var]
@@ -151,7 +156,7 @@ def lnlike(p, varinfo, snobj, bands):
             f = mod
             cov_f = np.power(err, 2)
          else:
-            f = -2.5*log10(mod) + snobj.data[band].filter.zp
+            f = -2.5*np.log10(mod) + snobj.data[band].filter.zp
             cov_f = np.power(err/mod*1.0857,2)
 
       m = mask*snobj.data[band].mask
@@ -196,6 +201,9 @@ def generateSampler(snobj, bands, nwalkers, threads=1, tracefile=None, **args):
    that takes a single argument and returns the log-probability as
    a prior. 
    
+   The threads argument is deprecated and ignored:  emcee>=3 dropped
+   worker pools from its API, so sampling runs serially.
+   
    This function returns:  sampler,p0
    where sampler is an emcee sampler, and p0 is [nwalkers] starting
    points.'''
@@ -207,16 +215,21 @@ def generateSampler(snobj, bands, nwalkers, threads=1, tracefile=None, **args):
          f = open(tracefile)
          line = f.readline()
          Nwalkers = 50
-         while line[0] == '#':
+         while line and line[0] == '#':
             if line.find('Col') > 0:
                tpars.append(line.split()[-1])
             elif line.find('Nwalkers') >= 0:
                Nwalkers = int(line.split()[-1])
             line = f.readline()
          f.close()
-         data = np.loadtxt(tracefile)
-         Niter = data.shape[0]/Nwalkers
-         endids = [(i+1)*Niter-1 for i in range(Nwalkers)]
+         data = np.atleast_2d(np.loadtxt(tracefile))
+         if data.shape[0] < Nwalkers or data.shape[0] % Nwalkers != 0:
+            raise RuntimeError("tracefile %s does not look like a valid "
+                  "MCMC trace:  %d rows is not a multiple of %d walkers" % \
+                  (tracefile, data.shape[0], Nwalkers))
+         # emcee's flatchain is iteration-major (row = step*Nwalkers + walker),
+         # so each walker's final state is one of the last Nwalkers rows.
+         endids = list(range(data.shape[0]-Nwalkers, data.shape[0]))
          tp0 = [data[ids,:] for ids in endids]
 
    if not snobj.model._fbands:
@@ -239,11 +252,17 @@ def generateSampler(snobj, bands, nwalkers, threads=1, tracefile=None, **args):
    if len(p0) < nwalkers:
       raise RuntimeError("Could not establish an initial set of MCMC walkers.\n" +\
             "Make sure your priors are consistent with your intial fit solution")
-   if tp0 is not None:
+   if tp0 is not None and len(tp0) >= len(p0):
       for i in range(len(p0)):
          for ii,par in enumerate(tpars):
+            # a parameter may be missing, or now fixed, in this run
+            if par not in vinfo or 'index' not in vinfo[par]:
+               continue
             j = vinfo[par]['index']
             p0[i][j] = tp0[i][ii]
-   sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(vinfo, snobj, bands),
-         threads=threads)
+   # emcee>=3 deprecated threads=:  it only emits a deprecation warning and
+   # never builds a pool, so forwarding it silently ran serially while still
+   # warning on every call.  The kwarg is kept above for API compatibility.
+   sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,
+         args=(vinfo, snobj, bands))
    return sampler,vinfo,p0

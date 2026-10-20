@@ -40,7 +40,7 @@ gloes.
 '''
 from __future__ import print_function
 import sys,os,string
-import numpy as num
+import numpy as np
 from scipy.interpolate import bisplrep,bisplev,splev,make_interp_spline
 import scipy.optimize
 import pickle
@@ -117,18 +117,18 @@ def load_data(band, param='dm15', gen=1):
       f.close()
       f2.close()
 
-      xs = h['CRVAL1'] + (num.arange(1,h['NAXIS1']+1) - h['CRPIX1'])\
+      xs = h['CRVAL1'] + (np.arange(1,h['NAXIS1']+1) - h['CRPIX1'])\
             *h['CDELT1']
-      ys = h['CRVAL2'] + (num.arange(1,h['NAXIS2']+1) - h['CRPIX2'])\
+      ys = h['CRVAL2'] + (np.arange(1,h['NAXIS2']+1) - h['CRPIX2'])\
             *h['CDELT2']
       N = h['NAXIS1']*h['NAXIS2']
-      x,y = num.meshgrid(xs,ys)
+      x,y = np.meshgrid(xs,ys)
       tx = xs[::2]
       ty = ys[::2]
-      flux[param][(band,gen)] = bisplrep(num.ravel(x), num.ravel(y), 
-                                         num.ravel(fdata), task=-1, tx=tx, ty=ty)
-      eflux[param][(band,gen)] = bisplrep(num.ravel(x), num.ravel(y), 
-                                          num.ravel(edata), task=-1, tx=tx, ty=ty)
+      flux[param][(band,gen)] = bisplrep(np.ravel(x), np.ravel(y), 
+                                         np.ravel(fdata), task=-1, tx=tx, ty=ty)
+      eflux[param][(band,gen)] = bisplrep(np.ravel(x), np.ravel(y), 
+                                          np.ravel(edata), task=-1, tx=tx, ty=ty)
       # Try to save it as a pickle, to speed things up later
       try:
          f = open(pfile, 'wb')
@@ -141,8 +141,8 @@ def load_data(band, param='dm15', gen=1):
          pass
 
       if debug:
-         rms = num.sqrt(num.mean(num.power(bisplev(xs,ys,df[(band,gen)])-fdata.T,2)))
-         mad = num.median(num.absolute(bisplev(xs,ys,df[(band,gen)])-fdata.T))
+         rms = np.sqrt(np.mean(np.power(bisplev(xs,ys,df[(band,gen)])-fdata.T,2)))
+         mad = np.median(np.absolute(bisplev(xs,ys,df[(band,gen)])-fdata.T))
          print("rms = ",rms, 'mad = ',mad)
    else:
       return
@@ -159,8 +159,8 @@ def load_meanSN():
    with open(fil, 'r') as fin:
       meanflux = json.load(fin)
    for filt in meanflux:
-      meanflux[filt]['tck'] = (num.array(meanflux[filt]['tck'][0]),
-                               num.array(meanflux[filt]['tck'][1]),
+      meanflux[filt]['tck'] = (np.array(meanflux[filt]['tck'][0]),
+                               np.array(meanflux[filt]['tck'][1]),
                                meanflux[filt]['tck'][2])
    # now safe as pickle for faster work
    with open(pfil, 'wb') as fout:
@@ -175,9 +175,9 @@ def meanSN(filt, t, s):
    di = meanflux[filt]
    xx = t/s
    F = splev(xx,di['tck'])
-   F = num.where(xx < di['t0'], di['f0']*(xx - di['te'])**2, F)
-   F = num.where(xx > di['t1'], di['f1']*num.exp(-xx/di['tau']), F)
-   F = num.where(xx < di['te'], 0, F) 
+   F = np.where(xx < di['t0'], di['f0']*(xx - di['te'])**2, F)
+   F = np.where(xx > di['t1'], di['f1']*np.exp(-xx/di['tau']), F)
+   F = np.where(xx < di['te'], 0, F) 
    return F
 
 
@@ -218,42 +218,42 @@ def finterp(band, t, p, param, gen, extrap=False):
    #   Z0 = 0
    Z0 = 0    # Maybe in the future, we try a mean SN
 
-   if len(num.shape(t)) == 0:
+   if len(np.shape(t)) == 0:
       scalar = 1
    else:
       scalar = 0
-   t = num.atleast_1d(t)
+   t = np.atleast_1d(t)
    # First the evaluation mtarix:
-   Z = num.atleast_2d(bisplev(t, p, f))[:,0] + Z0
-   eZ = num.atleast_2d(bisplev(t, p, ef))[:,0]
+   Z = np.atleast_2d(bisplev(t, p, f))[:,0] + Z0
+   eZ = np.atleast_2d(bisplev(t, p, ef))[:,0]
    if not extrap:
-      mask = num.greater_equal(t,f[0][0])*num.less_equal(t,f[0][-1])
-      mask = mask*num.greater(Z, 0)
-      Z = num.where(mask, Z, 1)
-      eZ = num.where(mask, eZ, -1)
+      mask = np.greater_equal(t,f[0][0])*np.less_equal(t,f[0][-1])
+      mask = mask*np.greater(Z, 0)
+      Z = np.where(mask, Z, 1)
+      eZ = np.where(mask, eZ, -1)
    else:
       t1,t2 = get_t_lim(band, param, gen)
-      mask = num.logical_not(num.isnan(Z))
+      mask = np.logical_not(np.isnan(Z))
       # extrapolate lower with t^2 law
-      if num.any(num.less(t,t1)):
+      if np.any(np.less(t,t1)):
          Tp = bisplev(t1, p, f, dx=1)
          T = bisplev(t1, p, f)
          eT = bisplev(t, p, ef)
          t0 = t1 - 2*T/Tp; a = T/(t1-t0)**2
-         Z = num.where(num.less(t, t1), a*num.power(t-t0,2), Z)
-         eZ = num.where(num.less(t, t1), eT, eZ)
-         mask = mask*num.greater(Z,0)*num.greater(t, t0)
-      if num.any(num.greater(t, t2)):
+         Z = np.where(np.less(t, t1), a*np.power(t-t0,2), Z)
+         eZ = np.where(np.less(t, t1), eT, eZ)
+         mask = mask*np.greater(Z,0)*np.greater(t, t0)
+      if np.any(np.greater(t, t2)):
          # extrapolate with m = a*(t-t2)+b
          Tp = bisplev(t2, p, f, dx=1)
          T = bisplev(t2, p, f)
          eT = bisplev(t2, p, ef)
-         b = -2.5*num.log10(T)
-         a = -2.5/num.log(10)/T*Tp
-         f = num.power(10, -0.4*(a*(t-t2)+b))
-         Z = num.where(num.greater(t, t2), f, Z)
-         eZ = num.where(num.greater(t, t2), eT, eZ)
-      Z = num.where(mask, Z, 1)
+         b = -2.5*np.log10(T)
+         a = -2.5/np.log(10)/T*Tp
+         f = np.power(10, -0.4*(a*(t-t2)+b))
+         Z = np.where(np.greater(t, t2), f, Z)
+         eZ = np.where(np.greater(t, t2), eT, eZ)
+      Z = np.where(mask, Z, 1)
    if scalar:
       return Z[0],eZ[0],mask[0]
    else:
@@ -316,11 +316,11 @@ class dm15_template:
          self.normalize = 0
       if generate:
          # generate the model light-curve from -10 to 80 in 1 day increments.
-         self.t = num.arange(-15,81, 1.0)
+         self.t = np.arange(-15,81, 1.0)
          for band in ['B','V','u','g','r', 'i','Y','J','H','K','J_K','H_K']:
             self.__dict__[band],self.__dict__['e'+band], mask = \
                self.eval(band, self.t)
-            self.__dict__['e'+band] = num.where(mask, self.__dict__['e'+band], -1.0)
+            self.__dict__['e'+band] = np.where(mask, self.__dict__['e'+band], -1.0)
 
    def deltaTmax(self, band, generation=1):
       '''Given the current dm15, what is the time of maximum of [band]
@@ -338,7 +338,7 @@ class dm15_template:
    def teval(self, band, time, dm15, gen=1, extrap=False):
       f,ef,mask = finterp(band, time, dm15, 'dm15', gen, extrap=extrap)
 
-      return(num.where(mask,-2.5*num.log10(f),-1))
+      return(np.where(mask,-2.5*np.log10(f),-1))
 
    def domain(self, band, gen=1):
       return get_t_lim(band, 'dm15', gen)
@@ -362,16 +362,16 @@ class dm15_template:
       s = dm152s(self.dm15)
       if band == 'J_K':
          return(0.080 + evt/s*0.05104699 + 0.007064257*(evt/s)**2 - 0.000257906*(evt/s)**3,
-               num.greater_equal(evt/s, NIR_range[0])*num.less_equal(evt/s, NIR_range[1])*0.08,
-               num.greater_equal(evt/s, NIR_range[0])*num.less_equal(evt/s, NIR_range[1])) 
+               np.greater_equal(evt/s, NIR_range[0])*np.less_equal(evt/s, NIR_range[1])*0.08,
+               np.greater_equal(evt/s, NIR_range[0])*np.less_equal(evt/s, NIR_range[1])) 
       elif band == 'H_K':
          return(0.050 + evt/s*0.0250923 + 0.001852107*(evt/s)**2 - 0.0003557824*(evt/s)**3,
-               num.greater_equal(evt/s, NIR_range[0])*num.less_equal(evt/s, NIR_range[1])*0.08,
-               num.greater_equal(evt/s, NIR_range[0])*num.less_equal(evt/s, NIR_range[1])) 
+               np.greater_equal(evt/s, NIR_range[0])*np.less_equal(evt/s, NIR_range[1])*0.08,
+               np.greater_equal(evt/s, NIR_range[0])*np.less_equal(evt/s, NIR_range[1])) 
       elif band == 'K':
          return(0.042 + evt/s*0.02728437+ 0.003194500*(evt/s)**2 - 0.0004139377*(evt/s)**3,
-               num.greater_equal(evt/s, NIR_range[0])*num.less_equal(evt/s, NIR_range[1])*0.08,
-               num.greater_equal(evt/s, NIR_range[0])*num.less_equal(evt/s, NIR_range[1])) 
+               np.greater_equal(evt/s, NIR_range[0])*np.less_equal(evt/s, NIR_range[1])*0.08,
+               np.greater_equal(evt/s, NIR_range[0])*np.less_equal(evt/s, NIR_range[1])) 
 
       # Check to see if we are extrapolating beyond the training boundaries
       # If so, and we go beyond min/max dm15, use root-finding to figure out
@@ -380,7 +380,7 @@ class dm15_template:
       dmmin,dmmax = get_p_lim(band,'dm15', gen)
       if sextrap and not (dmmin < self.dm15 < dmmax):
          tmin,tmax = get_t_lim('B', 'dm15', gen)
-         test_t = num.linspace(0,tmax,10)
+         test_t = np.linspace(0,tmax,10)
          if self.dm15 <= dmmin:
             start = self.teval('B', 15.0, dmmin)
             target = start + (self.dm15 - dmmin)
@@ -390,7 +390,7 @@ class dm15_template:
             target = start + (self.dm15 - dmmax)
             dmlim = dmmax
          test_vals = self.teval('B', test_t, dmlim) - target
-         id = num.nonzero(num.greater(test_vals,0))[0][0]
+         id = np.nonzero(np.greater(test_vals,0))[0][0]
          if debug:  print("start=",start,"dm15=",self.dm15,"target = ",target)
          t0 = test_t[id-1]
          t1 = test_t[id]
@@ -410,7 +410,7 @@ class dm15_template:
          dm15 = dmmax - 0.001
 
       tmin,tmax = get_t_lim(band, 'dm15', gen)
-      tmask = num.greater_equal(evt, tmin)*num.less_equal(evt, tmax)
+      tmask = np.greater_equal(evt, tmin)*np.less_equal(evt, tmax)
 
       # Apply any stretch needed for extrapolating
       evt = evt*s
@@ -422,7 +422,7 @@ class dm15_template:
       if not mag:
          return(evd, eevd, mask)
       else:
-         return(-2.5*num.log10(evd), eevd/evd*1.0857, mask)
+         return(-2.5*np.log10(evd), eevd/evd*1.0857, mask)
 
 
 class st_template:
@@ -449,11 +449,11 @@ class st_template:
 
       if generate:
          # generate the model light-curve from -10 to 80 in 1 day increments.
-         self.t = num.arange(-15,81, 1.0)
+         self.t = np.arange(-15,81, 1.0)
          for band in ['B','V','u','g','r', 'i','Y','J','H','J_K','H_K','K']:
             self.__dict__[band],self.__dict__['e'+band], mask = \
                self.eval(band, self.t)
-            self.__dict__['e'+band] = num.where(mask, self.__dict__['e'+band], -1.0)
+            self.__dict__['e'+band] = np.where(mask, self.__dict__['e'+band], -1.0)
 
    def deltaTmax(self, band, gen=1):
       '''Given the current dm15, what is the time of maximum of [band]
@@ -473,7 +473,7 @@ class st_template:
    def teval(self, band, time, st, gen=1, extrap=False):
       f,ef,mask = finterp(band, time, st, 'st', gen, extrap=extrap)
 
-      return(num.where(mask,-2.5*num.log10(f),-1))
+      return(np.where(mask,-2.5*np.log10(f),-1))
 
    def domain(self, band, gen=1):
       return get_t_lim(band, 'st', gen)
@@ -493,23 +493,23 @@ class st_template:
          evt = times/(1+z)
 
       if self.st <= 0:
-         return (evt*0, evt*0, num.zeros(evt.shape, dtype=bool))
+         return (evt*0, evt*0, np.zeros(evt.shape, dtype=bool))
 
       if band == 'J_K':
          s = self.st
          return(0.080 + evt/s*0.05104699 + 0.007064257*(evt/s)**2 - 0.000257906*(evt/s)**3,
-               num.greater_equal(evt/s, NIR_range[0])*num.less_equal(evt/s, NIR_range[1])*0.08,
-               num.greater_equal(evt/s, NIR_range[0])*num.less_equal(evt/s, NIR_range[1])) 
+               np.greater_equal(evt/s, NIR_range[0])*np.less_equal(evt/s, NIR_range[1])*0.08,
+               np.greater_equal(evt/s, NIR_range[0])*np.less_equal(evt/s, NIR_range[1])) 
       elif band == 'H_K':
          s = self.st
          return(0.050 + evt/s*0.0250923 + 0.001852107*(evt/s)**2 - 0.0003557824*(evt/s)**3,
-               num.greater_equal(evt/s, NIR_range[0])*num.less_equal(evt/s, NIR_range[1])*0.08,
-               num.greater_equal(evt/s, NIR_range[0])*num.less_equal(evt/s, NIR_range[1])) 
+               np.greater_equal(evt/s, NIR_range[0])*np.less_equal(evt/s, NIR_range[1])*0.08,
+               np.greater_equal(evt/s, NIR_range[0])*np.less_equal(evt/s, NIR_range[1])) 
       elif band == 'K':
          s = self.st
          return(0.042 + evt/s*0.02728437+ 0.003194500*(evt/s)**2 - 0.0004139377*(evt/s)**3,
-               num.greater_equal(evt/s, NIR_range[0])*num.less_equal(evt/s, NIR_range[1])*0.08,
-               num.greater_equal(evt/s, NIR_range[0])*num.less_equal(evt/s, NIR_range[1])) 
+               np.greater_equal(evt/s, NIR_range[0])*np.less_equal(evt/s, NIR_range[1])*0.08,
+               np.greater_equal(evt/s, NIR_range[0])*np.less_equal(evt/s, NIR_range[1])) 
 
       stmin,stmax = get_p_lim(band,'st', gen)
       if sextrap and not (stmin < self.st < stmax):
@@ -527,7 +527,7 @@ class st_template:
          st = stmax - 0.001
 
       tmin,tmax = get_t_lim(band, 'st', gen)
-      tmask = num.greater_equal(evt, tmin)*num.less_equal(evt, tmax)
+      tmask = np.greater_equal(evt, tmin)*np.less_equal(evt, tmax)
 
       # Apply any stretch
       evt = evt*s
@@ -538,4 +538,4 @@ class st_template:
       if not mag:
          return(evd, eevd, mask)
       else:
-         return(-2.5*num.log10(evd), eevd/evd*1.0857, mask)
+         return(-2.5*np.log10(evd), eevd/evd*1.0857, mask)

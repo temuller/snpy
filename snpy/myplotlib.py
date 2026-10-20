@@ -14,7 +14,7 @@ GOALS: - to make matplotlib more intuitive (at least to me) and more like my own
 import matplotlib.pyplot as plt
 import matplotlib.transforms as transforms
 import matplotlib.text as text
-from numpy import *
+import numpy as np
 from matplotlib import ticker
 from matplotlib import gridspec
 from matplotlib import rcParams
@@ -70,7 +70,7 @@ def img_bbox(img):
    '''extract a bounding box form an image object.'''
    bbox = transforms.Bbox.unit()
    x0,x1,y0,y1 = img.get_extent()
-   bbox.set_points(array([[x0,y0],[x1,y1]]))
+   bbox.set_points(np.array([[x0,y0],[x1,y1]]))
    return(bbox)
 
 def axis_bbox(axis):

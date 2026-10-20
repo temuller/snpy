@@ -7,7 +7,7 @@ from __future__ import print_function
 import os
 from snpy import kcorr
 from snpy.filters import fset
-from numpy import *
+import numpy as np
 from scipy import stats
 from scipy.optimize import brentq
 from numpy import median, diag, atleast_1d, std
@@ -81,7 +81,7 @@ class model:
       '''Call the interpolator for band [band] at time [t].  Returns the tuple
       (y,ey,m) where y is the interpolated point, ey is the error, and m is
       a validity mask (data is good where True)'''
-      scalar = (len(shape(t)) == 0)
+      scalar = (len(np.shape(t)) == 0)
       t = atleast_1d(t)
       f,mask = self.interps[band](t)
       ef = self.interps[band].error(t)
@@ -91,7 +91,7 @@ class model:
          ev[bids] = 1.0
          mask = mask*bids
          ef = 1.0857*ef/f
-         f = -2.5*log10(ev) + self.parent.data[band].filter.zp
+         f = -2.5*np.log10(ev) + self.parent.data[band].filter.zp
 
       return f, ef, mask
 
@@ -119,21 +119,21 @@ class model:
                else:
                   # self.deriv() for GP is really slow, so try this faster 
                   #    approach
-                  xs = array([brentq(inter.deriv, Tmaxs[0]-1, Tmaxs[0]+1)])
-                  ys = array(inter(xs[0]))
+                  xs = np.array([brentq(inter.deriv, Tmaxs[0]-1, Tmaxs[0]+1)])
+                  ys = np.array(inter(xs[0]))
                   if self.model_in_mags[band]:
-                     curvs = array([1])
+                     curvs = np.array([1])
                   else:
-                     curvs = array([-1])
+                     curvs = np.array([-1])
                   #xs,ys,curvs = inter.find_extrema(xmin=Tmaxs[0]-10, xmax=Tmaxs[0]+10)
             else:
                xs,ys,curvs = inter.find_extrema()
             if self.model_in_mags[band]:
-               xs = xs[greater(curvs,0)]
-               ys = ys[greater(curvs,0)]
+               xs = xs[np.greater(curvs,0)]
+               ys = ys[np.greater(curvs,0)]
             else:
-               xs = xs[less(curvs,0)]
-               ys = ys[less(curvs,0)]
+               xs = xs[np.less(curvs,0)]
+               ys = ys[np.less(curvs,0)]
             if len(xs) == 0:
                if i == 0:
                   # If we can't find maximum on the data, we're done
@@ -161,23 +161,23 @@ class model:
                   Mmaxs.append(-1)
                   dm15s.append(-1)
                else:
-                  Mmaxs.append(-2.5*log10(ys[0]) + zp)
+                  Mmaxs.append(-2.5*np.log10(ys[0]) + zp)
                   if m15:
-                     dm15s.append(-2.5*log10(y15) + zp - Mmaxs[-1])
+                     dm15s.append(-2.5*np.log10(y15) + zp - Mmaxs[-1])
                   else:
                      dm15s.append(-1)
          #Now compute stats
          inter.reset_mean()
-         Tmaxs,Mmaxs,dm15s = list(map(array, [Tmaxs, Mmaxs, dm15s]))
+         Tmaxs,Mmaxs,dm15s = list(map(np.array, [Tmaxs, Mmaxs, dm15s]))
 
-         Tgids = greater(Tmaxs, 0)
-         if sum(Tgids)*1.0/len(Tgids) < 0.8:
+         Tgids = np.greater(Tmaxs, 0)
+         if np.sum(Tgids)*1.0/len(Tgids) < 0.8:
             print("Warning!  More than 20% of MC realizations had bad Tmax")
-         Mgids = greater(Mmaxs, 0)
-         if sum(Mgids)*1.0/len(Mgids) < 0.8:
+         Mgids = np.greater(Mmaxs, 0)
+         if np.sum(Mgids)*1.0/len(Mgids) < 0.8:
             print("Warning!  More than 20% of MC realizations had bad Mmax")
-         dgids = greater(dm15s, 0)
-         if sum(dgids)*1.0/len(dgids) < 0.8:
+         dgids = np.greater(dm15s, 0)
+         if np.sum(dgids)*1.0/len(dgids) < 0.8:
             print("Warning!  More than 20% of MC realizations had bad dm15")
          self.parent.data[band].Tmax = Tmaxs[0]
          self.parent.data[band].e_Tmax = std(Tmaxs[Tgids]) 
@@ -186,13 +186,13 @@ class model:
          self.parent.data[band].dm15 = dm15s[0]
          self.parent.data[band].e_dm15 = std(dm15s[dgids]) 
          self.parent.data[band].cov_Tmax_dm15 = \
-               sum(compress(Tgids*dgids, (Tmaxs-Tmaxs[0])*(dm15s-dm15s[0])))/\
-               (sum(Tgids*dgids) - 1)
+               np.sum(np.compress(Tgids*dgids, (Tmaxs-Tmaxs[0])*(dm15s-dm15s[0])))/\
+               (np.sum(Tgids*dgids) - 1)
          self.parent.data[band].cov_Tmax_Mmax = \
-               sum(compress(Tgids*Mgids, (Tmaxs-Tmaxs[0])*(Mmaxs-Mmaxs[0])))/\
-               (sum(Tgids*Mgids) - 1)
+               np.sum(np.compress(Tgids*Mgids, (Tmaxs-Tmaxs[0])*(Mmaxs-Mmaxs[0])))/\
+               (np.sum(Tgids*Mgids) - 1)
          self.parent.data[band].cov_Mmax_dm15 = \
-               sum(compress(Mgids*dgids, (Mmaxs-Mmaxs[0])*(dm15s-dm15s[0])))/\
-               (sum(Mgids*dgids) - 1)
+               np.sum(np.compress(Mgids*dgids, (Mmaxs-Mmaxs[0])*(dm15s-dm15s[0])))/\
+               (np.sum(Mgids*dgids) - 1)
          return
 

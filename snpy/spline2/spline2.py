@@ -29,7 +29,7 @@ For more details, see:
  *  http://structureandchange.3me.tudelft.nl/
 '''
 from . import spline2c
-import numpy as num
+import numpy as np
 
 acffuncs = ['exp','gauss','linear','sinc']
 
@@ -87,13 +87,13 @@ def spline2(x, y, w=None, sigma=None, rsigma=None, xrange=None, degree=3,
         - acffit: how well the correlations agree with assumed funcion.
    '''
 
-   x = num.asarray(x).astype(num.float64)
-   y = num.asarray(y).astype(num.float64)
-   xin = x.astype(num.float64)
-   yin = y.astype(num.float64)
+   x = np.asarray(x).astype(np.float64)
+   y = np.asarray(y).astype(np.float64)
+   xin = x.astype(np.float64)
+   yin = y.astype(np.float64)
    if w is not None:
-      w = num.asarray(w).astype(num.float64)
-      win = w.astype(num.float64)
+      w = np.asarray(w).astype(np.float64)
+      win = w.astype(np.float64)
    else:
       win = x*0.0 + 1.0    # assume no weight info.
    if not (len(xin) == len(yin) == len(win)):
@@ -166,12 +166,12 @@ def evalsp(x, tck, deriv=0):
    Returns: 
       float array: evaluated interpolant or derivative thereof.
    '''
-   if len(num.shape(x)) == 0:
-      x = num.array([x]).astype(num.float64)
+   if len(np.shape(x)) == 0:
+      x = np.array([x]).astype(np.float64)
    else:
-      x = num.asarray(x).astype(num.float64)
+      x = np.asarray(x).astype(np.float64)
 
-   xin = x.astype(num.float64)
+   xin = x.astype(np.float64)
    t = tck[0]
    c = tck[1]
    l = len(t) - 1

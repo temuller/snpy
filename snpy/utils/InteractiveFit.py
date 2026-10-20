@@ -1,7 +1,7 @@
 '''This class lets you interactively fit using the fit1dcurve
 classes.'''
 from __future__ import print_function
-import numpy as num
+import numpy as np
 from snpy.myplotlib import PanelPlot
 from matplotlib import pyplot as plt
 try:
@@ -92,14 +92,14 @@ class InteractiveFit:
       # fit plot
       self.mp.axes[1].errorbar(self.x, self.y, yerr=self.ey, capsize=0,
             fmt='o')
-      if not num.all(self.mask):
-         m = num.logical_not(self.mask)
+      if not np.all(self.mask):
+         m = np.logical_not(self.mask)
          self._x1, = self.mp.axes[1].plot(self.x[m], self.y[m], 'x', 
                color='red', ms=16)
       else:
          self._x1 = None
       xmin,xmax = self.interp.domain()
-      xs = num.linspace(xmin,xmax, 100)
+      xs = np.linspace(xmin,xmax, 100)
       ys,m = self.interp(xs)
       self._mod, = self.mp.axes[1].plot(xs[m], ys[m], '-', color='black')
 
@@ -116,16 +116,16 @@ class InteractiveFit:
       resids = self.interp.residuals(mask=False)
       self._rp,dum,self._rl = self.mp.axes[0].errorbar(self.x, 
             resids, yerr=self.ey, capsize=0, fmt='o')
-      if not num.all(self.interp.mask):
-         self._x2, = self.mp.axes[0].plot(self.x[num.logical_not(self.mask)], 
-               self.interp.residuals(mask=False)[num.logical_not(self.mask)],
+      if not np.all(self.interp.mask):
+         self._x2, = self.mp.axes[0].plot(self.x[np.logical_not(self.mask)], 
+               self.interp.residuals(mask=False)[np.logical_not(self.mask)],
                'x', ms=16, color='red')
       else:
          self._x2 = None
       self.mp.axes[0].axhline(0, color='black')
 
       self.mp.set_limits()
-      if not num.all(m):
+      if not np.all(m):
          resids = resids[m]
          self.mp.axes[0].set_ylim((resids.min(), resids.max()))
       self.mp.axes[1].text(1.01, 1.0, "Parameters:", va='bottom', ha='left',
@@ -167,7 +167,7 @@ class InteractiveFit:
 
       # Update the model
       xmin,xmax = self.interp.domain()
-      xs = num.linspace(xmin,xmax, 1000)
+      xs = np.linspace(xmin,xmax, 1000)
       ys,m = self.interp(xs)
       self._mod, = self.mp.axes[1].plot(xs[m], ys[m], '-', color='black')
 
@@ -184,7 +184,7 @@ class InteractiveFit:
       self._rp,dum,self._rl = self.mp.axes[0].errorbar(self.x, 
             resids, yerr=self.ey, capsize=0, fmt='o', color='blue')
       #self.mp.set_limits()
-      if not num.all(m):
+      if not np.all(m):
          resids = resids[m]
          self.mp.axes[0].set_ylim((resids.min(), resids.max()))
       self.plot_stats()
@@ -201,19 +201,19 @@ class InteractiveFit:
 
    def redraw_x(self):
       '''Redraw the little red X's if needed'''
-      if not num.all(self.mask):
+      if not np.all(self.mask):
          if self._x1 is not None:
-            self._x1.set_data((self.x[num.logical_not(self.mask)], 
-               self.y[num.logical_not(self.mask)]))
+            self._x1.set_data((self.x[np.logical_not(self.mask)], 
+               self.y[np.logical_not(self.mask)]))
          else:
-            self._x1, = self.mp.axes[1].plot(self.x[num.logical_not(self.mask)],
-                  self.y[num.logical_not(self.mask)], 'x', color='red', ms=16)
+            self._x1, = self.mp.axes[1].plot(self.x[np.logical_not(self.mask)],
+                  self.y[np.logical_not(self.mask)], 'x', color='red', ms=16)
          if self._x2 is not None:
-            self._x2.set_data((self.x[num.logical_not(self.mask)], 
-               self.interp.residuals(mask=False)[num.logical_not(self.mask)]))
+            self._x2.set_data((self.x[np.logical_not(self.mask)], 
+               self.interp.residuals(mask=False)[np.logical_not(self.mask)]))
          else:
-            self._x2, = self.mp.axes[0].plot(self.x[num.logical_not(self.mask)],
-               self.interp.residuals(mask=False)[num.logical_not(self.mask)], 
+            self._x2, = self.mp.axes[0].plot(self.x[np.logical_not(self.mask)],
+               self.interp.residuals(mask=False)[np.logical_not(self.mask)], 
                'x', color='red', ms=16)
       elif self._x1 is not None:
          self._x1.remove()
@@ -229,11 +229,11 @@ class InteractiveFit:
       x,y = event.xdata,event.ydata
       ax = event.inaxes
       if ax is self.mp.axes[0]:
-         id = num.argmin(num.power(x-self.x,2) + \
-               num.power(y-self.interp.residuals(mask=False),2))
+         id = np.argmin(np.power(x-self.x,2) + \
+               np.power(y-self.interp.residuals(mask=False),2))
       else:
-         id = num.argmin(num.power(x-self.x,2) + num.power(y-self.y,2))
-      self.mask[id] = num.logical_not(self.mask[id])
+         id = np.argmin(np.power(x-self.x,2) + np.power(y-self.y,2))
+      self.mask[id] = np.logical_not(self.mask[id])
       self.redraw_x()
 
    def _bind_r(self, event):
@@ -330,7 +330,7 @@ class InteractiveFit:
             self.redraw()
          else:
             self._mpressed = True
-            id = num.argmin(num.absolute(x - tck[0][4:-4]))
+            id = np.argmin(np.absolute(x - tck[0][4:-4]))
             self._knotid = id
             self._knot_move_id = self.mp.fig.canvas.mpl_connect(
                   'motion_notify_event', self._move_knot_point)
@@ -358,7 +358,7 @@ class InteractiveFit:
          else:
             self._rx1 = event.xdata
             self.mp.fig.canvas.mpl_disconnect(self._range_pending)
-            if absolute(self._rx0-self._rx1) == 0:
+            if np.absolute(self._rx0-self._rx1) == 0:
                self.interp.xmin = None
                self.interp.xmax = None
             else:

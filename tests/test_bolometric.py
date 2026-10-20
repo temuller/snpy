@@ -1,12 +1,13 @@
 import pytest
+import os
 from snpy import get_sn
 from snpy.utils import fit1dcurve
 from snpy.version import __version__
 
 @pytest.fixture
-def snobj():
+def snobj(datadir):
    import snpy
-   snobj = snpy.get_sn('SN2006ax.txt')
+   snobj = snpy.get_sn(os.path.join(datadir, 'SN2006ax.txt'))
    for f in snobj.data:
       snobj.data[f].template(method='spline2')
    return snobj

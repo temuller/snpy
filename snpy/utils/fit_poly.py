@@ -4,13 +4,13 @@ McLaren series in 1 and 2 variables.
 Written by Chris Burns
 Obfuscated by Dan Kelson.
 '''
-from numpy  import *
+import numpy as np
 from numpy.linalg import svd
 
-def divz(x, y=1, repl=0.0,out=float32, tol=0):
-   if len(shape(y)) or len(shape(x)):
-      if len(shape(y)):  bad = less_equal(absolute(y), tol)
-      else:  band = ones(x.shape)*(abs(y)<=tol)
+def divz(x, y=1, repl=0.0,out=np.float32, tol=0):
+   if len(np.shape(y)) or len(np.shape(x)):
+      if len(np.shape(y)):  bad = np.less_equal(np.absolute(y), tol)
+      else:  bad = np.ones(x.shape)*(np.abs(y)<=tol)
       not_bad = 1-bad
       numer = (x*not_bad)
       denom = (y+bad)
@@ -18,21 +18,25 @@ def divz(x, y=1, repl=0.0,out=float32, tol=0):
       b = (numer/denom).astype(out)
       return(a + b).astype(out)
    else:
-      if abs(y) <= tol:  return(repl)
+      if np.abs(y) <= tol:  return(repl)
       else:  return(x/y)
 
 def fitsvd(A, b):
    decomp = svd(A, full_matrices=False)
-   sol1 = transpose(decomp[2])
+   sol1 = np.transpose(decomp[2])
    sol2 = divz(1.0,decomp[1], tol=1e-10)
-   sol3 = dot(transpose(decomp[0]),b)
-   if any(sol3):
+   sol3 = np.dot(np.transpose(decomp[0]),b)
+   if np.any(sol3):
       solr = (sol2*sol3)
-      soll = dot(sol1,solr)
-      err = sqrt(sum(power(sol1*sol2, 2), axis=0))
+      soll = np.dot(sol1,solr)
+      # Covariance of the solution is V . diag(1/s^2) . V^T.  Its diagonal is
+      # sum_j V[i,j]^2/s_j^2, i.e. the sum over the singular index (axis=1 of
+      # sol1*sol2).  Summing axis=0 would return the reciprocal singular values
+      # (length min(m,n)) instead of one error per coefficient (length n).
+      err = np.sqrt(np.sum(np.power(sol1*sol2, 2), axis=1))
    else:
-      soll = zeros(sol3.shape)
-      err = zeros(sol3.shape)
+      soll = np.zeros(sol1.shape[0])
+      err = np.zeros(sol1.shape[0])
    return soll,err
 
 
@@ -44,9 +48,9 @@ def fitpoly(x, y, w, k=1, x0=0):
    coefficients of the series:  f(x0), f'(x0), f''(x0), ... and the 
    associated errors.'''
 
-   w2 = sqrt(w)
-   A = [1.0/fac(i)*power(x-x0, i)*w2 for i in range(k+1)]
-   A = transpose(array(A))
+   w2 = np.sqrt(w)
+   A = [1.0/fac(i)*np.power(x-x0, i)*w2 for i in range(k+1)]
+   A = np.transpose(np.array(A))
    b = y*w2
 
    soll,err = fitsvd(A,b)
@@ -54,7 +58,7 @@ def fitpoly(x, y, w, k=1, x0=0):
 
 def poly(x, x0, soll):
    '''Compute the polynomial from the solution.'''
-   y = sum(array([1.0/fac(i)*power(x*1.0-x0, i)*soll[i] for i in range(len(soll))]), axis=0)
+   y = np.sum(np.array([1.0/fac(i)*np.power(x*1.0-x0, i)*soll[i] for i in range(len(soll))]), axis=0)
    return(y)
 
 
@@ -69,18 +73,21 @@ def fit2Dpoly(x, y, z, w, k=1, x0=0, y0=0):
       ...
       f[0,k](x0,y0), f[1,k](x0,y0), ..., f[k,k](x0,y0)'''
 
-   xbasis = [power(x-x0,i)/fac(i) for i in range(k+1)]
-   ybasis = [power(y-y0,j)/fac(j) for j in range(k+1)]
+   xbasis = [np.power(x-x0,i)/fac(i) for i in range(k+1)]
+   ybasis = [np.power(y-y0,j)/fac(j) for j in range(k+1)]
    A = [xbasis[i]*ybasis[j] for j in range(k+1) for i in range(k+1) if i+j <= k]
-   soll,err = fitsvd(transpose(A)*w[::,NewAxis],z*w)
+   soll,err = fitsvd(np.transpose(A)*w[::,np.newaxis],z*w)
    return (soll, err)
 
 def poly2D(x, y, x0, y0, soll):
-   k = (sqrt(1+4*len(soll))-1)/2
-   xbasis = [power(x-x0,i)/fac(i) for i in range(k+1)]
-   ybasis = [power(y-x0,i)/fac(i) for i in range(k+1)]
-   ret = sum([xbasis[i]*ybasis[j] for j in range(k+1) \
-                                  for i in range(k+1) if i+j <= k])
+   # len(soll) == (k+1)(k+2)/2 for a series truncated at total order k
+   k = int((np.sqrt(1+8*len(soll))-3)/2)
+   xbasis = [np.power(x-x0,i)/fac(i) for i in range(k+1)]
+   ybasis = [np.power(y-y0,j)/fac(j) for j in range(k+1)]
+   terms = [soll[n]*xbasis[i]*ybasis[j] for n,(i,j) in
+            enumerate([(i,j) for j in range(k+1) for i in range(k+1)
+                       if i+j <= k])]
+   ret = np.sum(terms, 0)
    return(ret)
 
 def legendre(x, y, u):
@@ -89,18 +96,21 @@ def legendre(x, y, u):
    if len(x) != len(y):
       raise ValueError("Error:  x and y must be of equal size")
    scalar = 0
-   if len(shape(u)) == 0:
+   if len(np.shape(u)) == 0:
       scalar = 1
-      u = array([u])
+      u = np.array([u])
 
-   Dx = -x[NewAxis,:] + u[:,NewAxis]
-   Dxx = x[:,NewAxis] - x[NewAxis,:] + identity(len(x))
+   Dx = -x[np.newaxis,:] + u[:,np.newaxis]
+   Dxx = x[:,np.newaxis] - x[np.newaxis,:] + np.identity(len(x))
 
-   ids = arange(len(x))
-   numerator = array([product(compress(not_equal(ids, i), Dx), axis=1) \
+   ids = np.arange(len(x))
+   # numerator[i] = prod_{m != i} (u[j] - x[m])   -> drop column m=i of Dx
+   numerator = np.array([np.prod(np.compress(np.not_equal(ids, i), Dx, axis=1), axis=1) \
          for i in range(len(x))])
-   denominator = array([product(Dxx[:,i]) for i in range(len(x))])
-   result = sum(numerator*y[:,NewAxis]/denominator[:,NewAxis])
+   # denominator[i] = prod_{m != i} (x[i] - x[m]) -> drop element m=i of row i
+   # (the identity term makes Dxx[i,i] == 1, so it is harmless)
+   denominator = np.array([np.prod(Dxx[i]) for i in range(len(x))])
+   result = np.sum(numerator*y[:,np.newaxis]/denominator[:,np.newaxis], axis=0)
    if scalar:
       return(result[0])
    else:

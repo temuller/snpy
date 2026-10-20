@@ -2,7 +2,7 @@
 from __future__ import print_function
 from snpy import dm15temp
 import os,sys
-from numpy import *
+import numpy as np
 #from scipy.interpolate import bisplrep
 #from scipy.interpolate import bisplev
 #from pygplot import *
@@ -20,8 +20,8 @@ t_low = -10.0
 t_high = 70
 
 bands = ['B','V','R','I']
-dm15s = arange(31)/30.0*(dm15_high-dm15_low) + dm15_low
-ts = arange(81)/80.0*(t_high-t_low) + t_low
+dm15s = np.arange(31)/30.0*(dm15_high-dm15_low) + dm15_low
+ts = np.arange(81)/80.0*(t_high-t_low) + t_low
 #mp = Panel(3,3, device='tcl.ps/VCPS')
 
 dm15_mat = []
@@ -46,8 +46,8 @@ for i in range(len(dm15s)):
       z_mat[band].append(z)
       ez_mat[band].append(ez)
 
-x = ravel(array(t_mat))
-y = ravel(array(dm15_mat))
+x = np.ravel(np.array(t_mat))
+y = np.ravel(np.array(dm15_mat))
 if os.path.isfile(tck_file):
    f = open(tck_file, 'rb')
    tck = pickle.load(f, encoding='iso-8859-1')
@@ -57,8 +57,8 @@ else:
 smooths = {}
 for band in bands:  smooths[band] = 10
 for band in bands:
-   z = ravel(array(z_mat[band]))
-   ez = ravel(array(ez_mat[band]))
+   z = np.ravel(np.array(z_mat[band]))
+   ez = np.ravel(np.array(ez_mat[band]))
    print("fitting band ",band)
    print(inter.__file__)
    try:

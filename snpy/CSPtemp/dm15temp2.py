@@ -40,7 +40,7 @@ gloes.
 '''
 from __future__ import print_function
 import sys,os,string
-import numpy as num
+import numpy as np
 import dm15temp2c as dm15tempc
 import pickle
 from scipy.interpolate import bisplev
@@ -122,16 +122,16 @@ class template:
          self.normalize = 0
       if generate:
          # generate the model light-curve from -10 to 80 in 1 day increments.
-         self.t = num.arange(-15,81, 1.0)
+         self.t = np.arange(-15,81, 1.0)
          for band in ['B','V','u_s','g_s','r_s','i_s','Bs','Vs','u','g','r',
                       'i','Y','J','H','K']:
             self.__dict__[band],self.__dict__['e'+band], mask = \
                self.eval(band, self.t)
-            self.__dict__['e'+band] = num.where(mask, self.__dict__['e'+band], -1.0)
+            self.__dict__['e'+band] = np.where(mask, self.__dict__['e'+band], -1.0)
 
    def eval(self, band, times, z=0, mag=1):
-      if len(num.shape(times)) == 0:
-         evt = num.array([times/(1+z)])
+      if len(np.shape(times)) == 0:
+         evt = np.array([times/(1+z)])
          scalar = 1
       else:
          evt = times/(1+z)
@@ -152,28 +152,28 @@ class template:
       #         num.greater_equal(evt/s, NIR_range[0])*num.less_equal(evt/s, NIR_range[1])) 
       if band == 'K':
          return(0.042 + evt/s*0.02728437+ 0.003194500*(evt/s)**2 - 0.0004139377*(evt/s)**3,
-               num.greater_equal(evt/s, NIR_range[0])*num.less_equal(evt/s, NIR_range[1])*0.08,
-               num.greater_equal(evt/s, NIR_range[0])*num.less_equal(evt/s, NIR_range[1])) 
+               np.greater_equal(evt/s, NIR_range[0])*np.less_equal(evt/s, NIR_range[1])*0.08,
+               np.greater_equal(evt/s, NIR_range[0])*np.less_equal(evt/s, NIR_range[1])) 
       if use_gloes or not (0.6 < self.dm15 < 2.0) or band in ['Y','J','H']:
          evd = evt*0
          eevd = evt*0
          dm15tempc.dm15temp(filter_numbers[band], self.dm15, evt, evd, eevd, 
                self.normalize, sigx0, xscale, maxsigmax, sigy0)
       else:
-         if not isinstance(evt, num.ndarray):
-            evd = num.array([bisplev(evt, self.dm15, btck[band])])
-            eevd = num.array([bisplev(evt, self.dm15, btck["e_"+band])])
+         if not isinstance(evt, np.ndarray):
+            evd = np.array([bisplev(evt, self.dm15, btck[band])])
+            eevd = np.array([bisplev(evt, self.dm15, btck["e_"+band])])
             if btck2 is not None and use_gp:
-               evd += num.array([bisplev(evt, self.dm15, btck2[band])])
-               eevd += num.array([bisplev(evt, self.dm15, btck2["e_"+band])])
+               evd += np.array([bisplev(evt, self.dm15, btck2[band])])
+               eevd += np.array([bisplev(evt, self.dm15, btck2["e_"+band])])
 
          else:
             if len(evt) == 1:
-               evd = num.array([bisplev(evt, self.dm15, btck[band])])
-               eevd = num.array([bisplev(evt, self.dm15, btck["e_"+band])])
+               evd = np.array([bisplev(evt, self.dm15, btck[band])])
+               eevd = np.array([bisplev(evt, self.dm15, btck["e_"+band])])
                if btck2 is not None and use_gp:
-                  evd += num.array([bisplev(evt, self.dm15, btck2[band])])
-                  eevd += num.array([bisplev(evt, self.dm15, btck2["e_"+band])])
+                  evd += np.array([bisplev(evt, self.dm15, btck2[band])])
+                  eevd += np.array([bisplev(evt, self.dm15, btck2["e_"+band])])
             else:
                evd = bisplev(evt, self.dm15, btck[band])[:,0]
                eevd = bisplev(evt, self.dm15, btck["e_"+band])[:,0]
@@ -181,44 +181,44 @@ class template:
                   evd += bisplev(evt, self.dm15, btck[band])[:,0]
                   eevd += bisplev(evt, self.dm15, btck["e_"+band])[:,0]
       # Now mask out [-10,70]
-      gids = num.greater_equal(evt, -10)*num.less_equal(evt,70)
+      gids = np.greater_equal(evt, -10)*np.less_equal(evt,70)
 
       # Here is some extra masking for high dm15s where the bisplev goes wonky
       if band[0] == 'i':
          if self.dm15 > 2:  
-            gids = gids*num.greater(evt, -4.0)
+            gids = gids*np.greater(evt, -4.0)
          elif 1.85 < self.dm15 <= 2.0:  
-            gids = gids*num.greater(evt, -5.0)
+            gids = gids*np.greater(evt, -5.0)
          elif 1.80 < self.dm15 <= 1.85:
-            gids = gids*num.greater(evt, -6.0)
+            gids = gids*np.greater(evt, -6.0)
          elif 1.70 < self.dm15 <= 1.80:
-            gids = gids*num.greater(evt, -7.0)
+            gids = gids*np.greater(evt, -7.0)
       if band[0] == 'r':
          if self.dm15 > 2:
-            gids = gids*num.greater(evt, -5.0)
+            gids = gids*np.greater(evt, -5.0)
          elif 1.9 < self.dm15 <=2.0:
-            gids = gids*num.greater(evt, -6.0)
+            gids = gids*np.greater(evt, -6.0)
          elif 1.83 < self.dm15 <=1.9:
-            gids = gids*num.greater(evt, -7.0)
+            gids = gids*np.greater(evt, -7.0)
          elif 1.76 < self.dm15 <=1.83:
-            gids = gids*num.greater(evt, -8.0)
+            gids = gids*np.greater(evt, -8.0)
       if band[0] == 'g':
          if self.dm15 > 2:
-            gids = gids*num.greater(evt, -6.0)
+            gids = gids*np.greater(evt, -6.0)
          elif 1.88 < self.dm15 <=2.0:
-            gids = gids*num.greater(evt, -7.0)
+            gids = gids*np.greater(evt, -7.0)
          elif 1.83 < self.dm15 <=1.88:
-            gids = gids*num.greater(evt, -8.0)
+            gids = gids*np.greater(evt, -8.0)
       if band[0] in ['Y','J','H']:
-         gids = gids*num.greater(evt, -8)*num.less(evt, 57)
-         if self.dm15 > 1.7:  gids = gids*num.less(evt, 40)
+         gids = gids*np.greater(evt, -8)*np.less(evt, 57)
+         if self.dm15 > 1.7:  gids = gids*np.less(evt, 40)
 
       if not mag:
          return(evd, eevd, gids)
-      zids = num.greater(evd, 0)
-      flux = num.where(zids, evd, 1.0)
-      evd = -2.5*num.log10(flux)
-      eevd = num.where(zids, eevd/flux*1.0857, 9.99)
+      zids = np.greater(evd, 0)
+      flux = np.where(zids, evd, 1.0)
+      evd = -2.5*np.log10(flux)
+      eevd = np.where(zids, eevd/flux*1.0857, 9.99)
       gids = gids*zids
       if scalar:
          return(evd[0], eevd[0], gids[0])
@@ -249,7 +249,7 @@ class template:
          A = As[band][0] + As[band][1]*self.Rv + As[band][2]*self.Rv**2
          B = Bs[band][0] + Bs[band][1]*self.Rv + Bs[band][2]*self.Rv**2
          return(A + B*(self.dm15 - 1.1), 
-               num.sqrt(eAs[band]**2 + eBs[band]**2*(self.dm15-1.1)**2))
+               np.sqrt(eAs[band]**2 + eBs[band]**2*(self.dm15-1.1)**2))
 
 
 
@@ -268,7 +268,7 @@ if __name__ == "__main__":
    print("# This is dm15temp2 v. 0.1, using GLoEs with built-in weights")
    print("# Constructed light curve template for dm15=%.3f mag, filter=%s" % (dm15,filter))
    print("# Columns:  \n#  1    t(Bmax) \n#  2-3  M-M(max)   sigma[M-M(max)]")
-   ts = num.arange(-10, 70, 1.0)
+   ts = np.arange(-10, 70, 1.0)
    m,em,mask = t.eval(filter, ts)
    for i in range(len(m)):
       if mask[i] == 1:

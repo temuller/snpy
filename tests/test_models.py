@@ -11,9 +11,9 @@ havemlcs = pytest.mark.skipif('MLCS2K2_BASEDIR' not in os.environ,
     reason="MLCS2K2_BASEDIR environment variable not set (MLCS not installed?")
 
 @pytest.fixture
-def snobj():
+def snobj(datadir):
    import snpy
-   snobj = snpy.get_sn('SN2006ax.txt')
+   snobj = snpy.get_sn(os.path.join(datadir, 'SN2006ax.txt'))
    return snobj
 
 # Test fitting all the models. First, here are the results we expect

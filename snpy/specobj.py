@@ -1,9 +1,8 @@
 '''Along with photometric data, let's create a spectral sequence that can
 be included in a SNooPy object.'''
 
-from numpy import *
+import numpy as np
 from snpy import fset
-from snpy.filters import ch
 from snpy.filters import spectrum
 from snpy.filters import filter
 from matplotlib import pyplot as plt
@@ -22,12 +21,17 @@ elements = {
 elnames = elements.keys()
 
 def smoothspec(spec, boxsize):
-   '''Do a boxcar average of a spectrum.'''
+   '''Do a boxcar average of a spectrum.  The result has the same length as
+   the input.'''
    # copy mirror-images on the ends to avoid transient signals
-   s = r_[spec[boxsize-1:0:-1],spec,spec[-2:-boxsize-1:-1]]
+   s = np.r_[spec[boxsize-1:0:-1],spec,spec[-2:-boxsize-1:-1]]
    # window function is a box
-   w = ones(boxsize, 'd')
-   return convolve(w/w.sum(), s, mode='valid')[boxsize/2:-boxsize/2+1]
+   w = np.ones(boxsize, 'd')
+   y = np.convolve(w/w.sum(), s, mode='valid')
+   # 'valid' leaves len(spec)+boxsize-1 samples; trim back to len(spec),
+   # keeping the window centered on the input samples.
+   left = (boxsize - 1)//2
+   return y[left:left+len(spec)]
 
 class timespec:
    '''This class defines a time series of spectra. It includes the time
@@ -47,7 +51,7 @@ class timespec:
    def __init__(self, parent, MJD, spectra):
       
       self.parent = parent
-      self.MJD = asarray(MJD)
+      self.MJD = np.asarray(MJD)
       if not isinstance(spectra, list):
          raise ValueError("spectra must be a list of snpy.filters.spectrum")
       for spec in spectra:
@@ -69,13 +73,13 @@ class timespec:
    def sort_time(self):
       '''If the time sequence of the spectra are not in ascending order, shuffle
          them accordingly.'''
-      sids = argsort(self.MJD)
+      sids = np.argsort(self.MJD)
       self.MJD = self.MJD[sids]
       self.spectra = [self.spectra[i] for i in sids]
 
    def dayindex(self, day):
       '''Returns the index of the data corresponding to day.'''
-      id = argmin(absolute(self.MJD - day))
+      id = np.argmin(np.absolute(self.MJD - day))
       return(id)
    
    def plot(self, day=None, idx=None, ax=None, **popts):
@@ -117,36 +121,10 @@ class timespec:
          raise ValueError("band must be string or filters.filter instance")
       if isinstance(band, six.string_types):
          band = fset[band]
-      mags = array([band.synth_mag(spec,z=z,zeropad=zeropad) \
+      mags = np.array([band.synth_mag(spec,z=z,zeropad=zeropad) \
             for spec in self.spectra])
-      gids = ~isnan(mags)
+      gids = ~np.isnan(mags)
       return (self.MJD[gids], mags[gids])
-
-   def synth_emag(self, filt, days, z=0):
-      '''Produce the error in a synthetic magnitude based on errors in the 
-      spectra.  This assumes errors in the spectra are not correlated... 
-      probably not right.'''
-      if type(filt) is type(""):
-         filt = fset[filt]
-      elif type(filt) is not type(fset['Bs']):
-         raise TypeError("Error:  filter must be a string or filter object")
-      fwave = filt.wave/(1.0 + z)
-      fresp = filt.resp
-
-      emags = []
-      for day in days:
-         id = self.dayindex(day)
-         # re-sample the filter on the spectrum resolution
-         tck = scipy.interpolate.splrep(fwave,fresp,0*fwave+1, k=1, s=0)
-         fresp2 = scipy.interpolate.splev(self.waves[id], tck)
-         delta_wave = average(self.waves[id][1:] - self.waves[id][:-1])
-         F = filt.response(self.waves[id], self.spectra[id], z)
-         varF = filt.response(self.waves[id], 
-               power(self.errors[id],2)*fresp2*self.waves[id]/ch*delta_wave, 
-               photons=1)
-         em = 1.086*sqrt(varF)/F
-         emags.append(em)
-      return(array(emags))
 
 class InteractiveSpec:
 
@@ -282,8 +260,7 @@ class InteractiveSpec:
 
    def help(self, event):
       '''produce a help message with registered bindings.'''
-      keys = self._bindings.keys()
-      keys.sort()
+      keys = sorted(self._bindings.keys())
       print("Available key commands:")
       for key in keys:
          print("{:5s}: {}".format(key, self._binding_help[key]))
@@ -314,8 +291,8 @@ class InteractiveSpec:
       w,f = event.xdata, event.ydata
 
       wave,flux = self._getcurspec()
-      dists = power(wave-w,2)+power(flux-f,2)
-      id = argmin(dists)
+      dists = np.power(wave-w,2)+np.power(flux-f,2)
+      id = np.argmin(dists)
       if getattr(self, '_pstate', None) is None:
          # First point on the plot
          # Find the closest point
@@ -330,15 +307,15 @@ class InteractiveSpec:
             y0,y1 = y1,y0
          
          self._pline += self.ax.plot([x0, x1],[y0,y1], '-')
-         gids = greater(wave,x0)*less(wave,x1)
+         gids = np.greater(wave,x0)*np.less(wave,x1)
          yy = lambda x: y0 + (y1-y0)/(x1-x0)*(x-x0)
          self._pfill.append(self.ax.fill_between(wave[gids], flux[gids],
                yy(wave[gids]), facecolor=self._pline[-1].get_color(), 
                edgecolor='none', alpha=0.5))
-         pcont = scipy.integrate.trapz(yy(wave[gids]), x=wave[gids])
-         integ = scipy.integrate.trapz(flux[gids], x=wave[gids])
+         pcont = scipy.integrate.trapezoid(yy(wave[gids]), x=wave[gids])
+         integ = scipy.integrate.trapezoid(flux[gids], x=wave[gids])
          line = pcont - integ
-         imin = argmin(flux[gids])
+         imin = np.argmin(flux[gids])
          xmin = spec.wave[gids][imin]
 
          pequiv = line/yy(xmin)

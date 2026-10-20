@@ -1,10 +1,20 @@
-Running these tests requires the pytest module:
+Running the test suite
+======================
 
-pip install pytest
+Install SNooPy in editable mode (so that "import snpy" picks up this
+working tree rather than a stale copy in site-packages) together with the
+test dependencies:
 
-Note that if you are running SNooPy in a virtual environment, you need to use
-the pip located in that virtual environment to install pytest, otherwise, it
-won't be able to load SNooPy's modules for testing.
+    pip install -e ".[test]"
 
-Simply run 'pytest' in this folder. These test scripts should run with no 
-errors.
+Then run pytest from the repository root (or from this folder -- the suite
+no longer depends on the invoking directory):
+
+    pytest
+
+The shared fixtures in conftest.py copy the data files into an isolated
+temporary directory for every test, so relative-path reads resolve and
+files written by the tests do not touch the source tree.
+
+Note: some tests (e.g. the Milky-Way reddening value) require network
+access to IRSA to fetch E(B-V); those may fail or skip when offline.

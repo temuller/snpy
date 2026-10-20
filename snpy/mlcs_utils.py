@@ -35,7 +35,7 @@ for key in snpy_to_mlcs:
 mlcs_to_snpy0 = {}
 for key in snpy_to_mlcs0:
    filt = snpy_to_mlcs0[key]
-   mlcs_to_snpy[filt] = key
+   mlcs_to_snpy0[filt] = key
 
 def parse_results(loc):
    '''Take the file output from MLCS and parse the results into python
@@ -45,7 +45,7 @@ def parse_results(loc):
       loc (str):  Location (folder) for the output files
       
    Returns:
-      (results,CovMat,stats):
+      (results,stats):
       
       results:  dictionary of  dictionaries of 2-tuples, keyed by interation
                 and parameter name equal to the best-fit value and error.
@@ -69,14 +69,17 @@ def parse_results(loc):
    for it in iters:
       fit = os.path.join(loc,"{}.{}.fit.out".format(base,it))
       with open(fit, 'r') as fin: lines = fin.readlines()
-      lines = [line.strip().split() for line in lines if line[0] != ';']
+      # skip comments and blank lines (a blank line would split() to [])
+      lines = [line.strip().split() for line in lines
+               if line.strip() and line[0] != ';']
       results[it] = {}
       for i,tag in enumerate(tags):
          results[it][tag] = list(map(float,lines[-1][2*i+1:2*i+3]))
 
    with open(os.path.join(loc, base+".mcs.log"), 'r') as fin:
       lines = fin.readlines()
-   lines = [line.strip().split() for line in lines if line[0] != ';']
+   lines = [line.strip().split() for line in lines
+            if line.strip() and line[0] != ';']
    for line in lines:
       it,rchisq,ndof,chisq0,chisq,prisq,_,_,_,_,_,_,_,typ = line
       it = "iter{}".format(it)
@@ -113,7 +116,8 @@ def parse_lc(loc, stock=True, trans=None):
    for fi in files:
       with open(fi) as fin: lines = fin.readlines()
       it = os.path.basename(fi).split('.')[1]
-      lines = [line.strip().split() for line in lines if line[0] != '#']
+      lines = [line.strip().split() for line in lines
+               if line.strip() and line[0] != '#']
       lcs[it] = {}
       for line in lines:
          filt,t,mag,emag,kcorr,ekcorr,galext,egalext = line

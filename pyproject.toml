@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "snpy"
-version = "2.7.3"
+dynamic = ["version"]
 authors = [
     {name="Chris Burns", email="cburns@carnegiescience.edu"},
 ]
 description = "SNooPy:  Supernova light-curve analysis tool"
 readme = "README.rst"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 keywords = ["astronomy","supernova","science"]
 license = {file = "LICENSE"}
 classifiers = [
@@ -19,28 +19,37 @@ classifiers = [
     "Framework :: IPython",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 2",
-    "Programming Language :: Python :: 2.6",
-    "Programming Language :: Python :: 2.7",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Astronomy"
 ]
 dependencies = [
-    "oldest-supported-numpy",
+    "numpy",
     "scipy",
     "astropy",
-    "ipython",
     "matplotlib",
-    "pandas",
-    "pymysql",
-    "scikit-learn",
+    "six",
     "h5py",
     "onnxruntime",
-    "emcee"]
+    "emcee",
+    "pymysql",
+    "scikit-learn"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+interactive = ["ipython"]
 
 
 [tool.setuptools]
 packages = ["snpy","snpy.CSPtemp","snpy.SwiftTemp","snpy.dm15temp",
             "snpy.filters","snpy.spline2","snpy.sqlmod","snpy.utils"]
+
+[tool.setuptools.dynamic]
+version = {attr = "snpy.version.__version__"}
 
 [tool.setuptools.package-data]
 "snpy.CSPtemp" = ["fits/*.fits"]

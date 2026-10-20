@@ -10,11 +10,12 @@ Feb. 2014:  The method used up to now was really inefficient. Now we do what
 from __future__ import print_function
 import six
 import sys,os,string
-import numpy as num
+import numpy as np
 import scipy
 #import dm15tempc
 import pickle
 from scipy.optimize import brentq
+from scipy.interpolate import bisplev
 
 template_bands = ['Bs','Vs','Rs','Is']
 
@@ -84,7 +85,7 @@ class template:
       else:
          self.s = 1.0
       if generate:
-         self.t = arange(-10,71, 1.0)
+         self.t = np.arange(-10,71, 1.0)
          for band in ['B','V','R','I']:
             self.__dict__[band] = \
                   bisplev(self.t/self.s, self.dm15,self.tck[band])[:,0]
@@ -92,10 +93,10 @@ class template:
             self.__dict__['e'+band] = \
                   bisplev(self.t/self.s, self.dm15,self.tck['e_'+band])[:,0]
                   #self.tck['e_'+band].ev(self.t/self.s, self.t*0+self.dm15)
-         self.eB = num.where(num.less(self.eB, 0.001), 0.001, self.eB)
-         self.eV = num.where(num.less(self.eV, 0.001), 0.001, self.eV)
-         self.eR = num.where(num.less(self.eR, 0.001), 0.001, self.eR)
-         self.eI = num.where(num.less(self.eI, 0.001), 0.001, self.eI)
+         self.eB = np.where(np.less(self.eB, 0.001), 0.001, self.eB)
+         self.eV = np.where(np.less(self.eV, 0.001), 0.001, self.eV)
+         self.eR = np.where(np.less(self.eR, 0.001), 0.001, self.eR)
+         self.eI = np.where(np.less(self.eI, 0.001), 0.001, self.eI)
          # Here is a hack to produce a template in the same manner as Jose-Louis'
          # code.
          #gids = num.greater_equal(self.t, -12)*num.less_equal(self.t, 10)
@@ -103,9 +104,9 @@ class template:
          self.J,self.eJ,maskJ = self.eval('J', self.t)
          self.H,self.eH,maskH = self.eval('H', self.t)
          self.K,self.eK,maskK = self.eval('K', self.t)
-         self.eJ = num.where(maskJ, self.eJ, -1.0)
-         self.eH = num.where(maskH, self.eH, -1.0)
-         self.eK = num.where(maskK, self.eK, -1.0)
+         self.eJ = np.where(maskJ, self.eJ, -1.0)
+         self.eH = np.where(maskH, self.eH, -1.0)
+         self.eK = np.where(maskK, self.eK, -1.0)
 
       if colors=='none':
          BmV = 0
@@ -128,8 +129,8 @@ class template:
       times, optionally with a redshift (in the sense that the times should
       be blueshifted before interpolating.  Also returns a mask indicating
       the interpolated points (1) and the extrapolated points (0)'''
-      if len(num.shape(times)) == 0:
-         evt = num.array([times/(1+z)])
+      if len(np.shape(times)) == 0:
+         evt = np.array([times/(1+z)])
          scalar = 1
       else:
          evt = times/(1+z)
@@ -140,18 +141,18 @@ class template:
       s = dm152s(self.dm15)
       if band == 'J':
          return(0.080 + evt/s*0.05104699 + 0.007064257*(evt/s)**2 - 0.000257906*(evt/s)**3,
-               0.0*evt/s + 0.06, num.greater_equal(evt/s, -12)*num.less_equal(evt/s, 10)) 
+               0.0*evt/s + 0.06, np.greater_equal(evt/s, -12)*np.less_equal(evt/s, 10)) 
       elif band == 'H':
          return(0.050 + evt/s*0.0250923 + 0.001852107*(evt/s)**2 - 0.0003557824*(evt/s)**3,
-               0.0*evt/s + 0.08, num.greater_equal(evt/s, -12)*num.less_equal(evt/s, 10)) 
+               0.0*evt/s + 0.08, np.greater_equal(evt/s, -12)*np.less_equal(evt/s, 10)) 
       elif band == 'K':
          return(0.042 + evt/s*0.02728437+ 0.003194500*(evt/s)**2 - 0.0004139377*(evt/s)**3,
-               0.0*evt/s + 0.08, num.greater_equal(evt/s, -12)*num.less_equal(evt/s, 10)) 
+               0.0*evt/s + 0.08, np.greater_equal(evt/s, -12)*np.less_equal(evt/s, 10)) 
       #evd = self.tck[band].ev(evt/self.s, evt*0+self.dm15)
       #eevd = self.tck['e_'+band].ev(evt/self.s, evt*0+self.dm15)
       evd = bisplev(evt/self.s, self.dm15, self.tck[band])
       eevd = bisplev(evt/self.s, self.dm15, self.tck['e_'+band])
-      mask = num.greater_equal(evt/self.s, -10)*num.less_equal(evt/self.s,70)
+      mask = np.greater_equal(evt/self.s, -10)*np.less_equal(evt/self.s,70)
 
       if scalar:
          return(evd[0], eevd[0], mask[0])
@@ -178,7 +179,7 @@ class template:
       # For those bands with not calibration yet:
       if band not in a:  return(-19.0, 0.0)
       return (a[band] + b[band]*(self.dm15 - 1.1),
-              num.sqrt(ea[band]**2 + (self.dm15-1.1)**2*eb[band]**2))
+              np.sqrt(ea[band]**2 + (self.dm15-1.1)**2*eb[band]**2))
   
 
 if __name__ == "__main__":
