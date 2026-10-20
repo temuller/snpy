@@ -46,6 +46,24 @@ def _in_tmp_workdir(tmp_path, monkeypatch):
     yield
 
 
+@pytest.fixture(autouse=True)
+def _offline_ebvgal(monkeypatch):
+    """Make Milky-Way E(B-V) look-ups deterministic and offline-safe.
+
+    ``sn.getEBVgal`` queries the IRSA dust service over the network, which
+    makes the suite fail when offline and flaky otherwise.  Pin the value
+    for the test field (SN2006ax) to the value the service returns.
+    """
+    from snpy.utils import IRSA_dust_getval
+
+    def _fixed_get_dust_RADEC(ra, dec, calibration="SF11"):
+        return [0.041], [1]
+
+    monkeypatch.setattr(IRSA_dust_getval, "get_dust_RADEC",
+                        _fixed_get_dust_RADEC)
+    yield
+
+
 @pytest.fixture
 def datadir():
     """Absolute path to the directory holding the SNooPy test data."""
