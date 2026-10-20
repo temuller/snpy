@@ -2,13 +2,7 @@
 '''A module to make WEB querries to the IRSA Schlegel dust map calulator
 and extract E(B-V)'''
 
-from __future__ import print_function
-import six
-if six.PY2:
-   import urllib
-else:
-   import urllib.request as urllib
-import re
+import urllib.request as urllib
 from xml.dom.minidom import parse
 
 debug = 0

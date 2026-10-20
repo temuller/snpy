@@ -11,6 +11,7 @@ GOALS: - to make matplotlib more intuitive (at least to me) and more like my own
 
 '''
 
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.transforms as transforms
 import matplotlib.text as text

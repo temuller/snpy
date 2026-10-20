@@ -4,15 +4,12 @@
    version uses the matplotlib library.
 '''
 import numpy as np
-import matplotlib
-#matplotlib.use('TkAgg')
 from snpy import myplotlib
 from matplotlib import pyplot,rcParams
 from matplotlib.patches import Rectangle
 from matplotlib.lines import Line2D
 from matplotlib.ticker import MaxNLocator,AutoLocator
 from snpy import kcorr
-import types, string
 from snpy.filters import fset
 from snpy import mangle_spectrum
 #from snpy.utils import InteractiveFit

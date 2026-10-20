@@ -4,7 +4,6 @@ left is to define prior probabilities.'''
 
 import emcee
 import numpy as np
-from scipy.optimize import minimize
 import types,os
 
 gconst = -0.5*np.log(2*np.pi)

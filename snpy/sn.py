@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-from __future__ import print_function, absolute_import
-import six
-import sys,string,os
+import sys,os
 import warnings
 have_sql = 1
 from . import sqlmod
@@ -19,7 +17,6 @@ try:
 except:
    triangle=None
    
-import types
 import time
 from . import plot_sne_mpl as plotmod
 from .lc import lc           # the light-curve class
@@ -39,7 +36,7 @@ from .filters import standards # standard SEDs
 from . import mangle_spectrum      # SN SED mangling routines
 import pickle
 from . import model
-from .utils.fit1dcurve import list_types,regularize
+from .utils.fit1dcurve import regularize
 from .version import __version__
 
 # Some useful functions in other modules which the interactive user may want:
@@ -51,11 +48,8 @@ BD17 = standards.Smith.bd17
 
 def check_file(o):
    '''Return true if o is an open file.'''
-   if six.PY2:
-      return type(o) is types.FileType
-   else:
-      from io import IOBase
-      return isinstance(o, IOBase)
+   from io import IOBase
+   return isinstance(o, IOBase)
 
 
 def myupdate(d1, d2):
@@ -2578,10 +2572,7 @@ def load(fname):
    to migrate previous saves.'''
    try:
       f = open(fname, 'rb')
-      if six.PY3:
-         inst = pickle.load(f, encoding='iso-8859-1')
-      else:
-         inst = pickle.load(f)
+      inst = pickle.load(f, encoding='iso-8859-1')
       f.close()
       if getattr(inst, 'k_extrapolate', None) is None:
          inst.k_extrapolate = False
@@ -2718,10 +2709,7 @@ def get_sn(str, sql=None, **kw):
 
 def check_version():
    global __version__
-   if six.PY3:
-      import urllib.request as urllib
-   else:
-      import urllib
+   import urllib.request as urllib
    #from distutils.version import LooseVersion
    try:
       from packaging.version import parse as LooseVersion
@@ -2738,7 +2726,7 @@ def check_version():
    lines = u.readlines()
    ver = lines[0].strip()
    u.close()
-   if six.PY3: ver = str(ver, 'utf-8')
+   ver = str(ver, 'utf-8')
    ver = LooseVersion(ver)
    if ver > LooseVersion(__version__):
       return True,lines[1:]

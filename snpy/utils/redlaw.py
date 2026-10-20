@@ -14,7 +14,6 @@ the following correction:
 
 '''
 
-import six
 from snpy.filters import fset
 from snpy import kcorr
 from scipy.interpolate import bisplev
@@ -27,10 +26,7 @@ import pickle
 base = os.path.dirname(__file__)
 if os.path.isfile(os.path.join(base,'Ia_R_splines.pickle')):
    f = open(os.path.join(base,'Ia_R_splines.pickle'), 'rb')
-   if six.PY3:
-      Bspls = pickle.load(f, encoding='iso-8859-1')
-   else:
-      Bspls = pickle.load(f)
+   Bspls = pickle.load(f, encoding='iso-8859-1')
    f.close()
 
 def R_lambda(f, Rv, EBV, redlaw='ccm'):

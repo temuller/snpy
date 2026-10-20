@@ -20,13 +20,11 @@ spectrum/filter data, they provide the following funcionality:
 This module also supplies a dictionary called filters with some common filters
 and zero-points built in.'''
 
-from __future__ import print_function
-import os,sys,types
+import os
 import numpy as np
 import scipy.integrate
 import scipy.interpolate
 from glob import glob
-import string
 from snpy.utils.deredden import unred
 #from astropy import units as u
 from astropy.constants import c,h
@@ -201,7 +199,7 @@ class filter(spectrum):
          if self.mint is None:
             self.mint = scipy.interpolate.interp1d(self.wave, 
                   self.resp, kind=interp_method)
-         fresp_int = self.mint(trim_wave)
+         fresp_int = self.mint(wave)
 
       fresp_int = np.where(np.less(wave,self.wave.min()), np.nan, fresp_int)
       fresp_int = np.where(np.greater(wave,self.wave.max()), np.nan, 

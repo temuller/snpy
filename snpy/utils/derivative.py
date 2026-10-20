@@ -1,6 +1,7 @@
 ''' Pilferred from scipy github repo. If they're going to get rid of it,
 it's up for grabs as far as I'm concerned.'''
 from numpy import array, arange,hstack,prod
+import numpy as np
 
 def central_diff_weights(Np, ndiv=1):
     """
@@ -30,7 +31,7 @@ def central_diff_weights(Np, ndiv=1):
     from scipy import linalg
     ho = Np >> 1
     x = arange(-ho,ho+1.0)
-    x = x[:,newaxis]
+    x = x[:,np.newaxis]
     X = x**0.0
     for k in range(1,Np):
         X = hstack([X,x**k])

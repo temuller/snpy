@@ -14,15 +14,13 @@ There are serveral steps:
    6) Correct for distance.
 '''
 
-from snpy.filters import fset, ch, standards
+from snpy.filters import fset, standards
 from .kcorr import get_SED
 from . import kcorr
-from .filters import standards
 Vega = standards['VegaB']
 from .utils import deredden
 from .mangle_spectrum import mangle_spectrum2
 from scipy.integrate import trapezoid as trapz
-from scipy.interpolate import splrep,splev
 import numpy as np
 import sys
 import types

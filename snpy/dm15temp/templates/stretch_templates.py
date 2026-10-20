@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
 import sys
 # fit_lightcurves also provides a `super` class which shadows the builtin
 from fit_lightcurves import columns, super

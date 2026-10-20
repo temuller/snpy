@@ -8,8 +8,6 @@ wavelength. They are the following:
 - fm07: Average Fitzpatric & Masa (2007) for MW.
 - nataf: Experiemental version of CCM from David Nataf.
 '''
-from scipy.interpolate import interp1d
-
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 

@@ -2,13 +2,8 @@
 Module for SNooPy to download/parse data from the Open Supernova Catalog.
 '''
 
-from __future__ import print_function
-import six
 import json
-if six.PY3:
-   import urllib.request as urllib
-else:
-   import urllib
+import urllib.request as urllib
 from astropy.coordinates import Angle
 from snpy import sn,lc,fset
 from numpy import array,log10

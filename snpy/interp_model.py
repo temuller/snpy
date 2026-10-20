@@ -3,20 +3,11 @@ other module (model.py), this model is based on a interpolate1d.py and so doesn'
 a least-squares fit routine (at least not at the user level).  This supplants the
 template-fitting with splines.'''
 
-from __future__ import print_function
-import os
-from snpy import kcorr
-from snpy.filters import fset
 import numpy as np
-from scipy import stats
 from scipy.optimize import brentq
-from numpy import median, diag, atleast_1d, std
-from numpy.linalg import inv
+from numpy import atleast_1d, std
 
-#from snpy.utils import fit1dcurve
-#from snpy.utils import InteractiveFit
-import fit1dcurve
-import InteractiveFit
+from snpy.utils import fit1dcurve
 
 if 'gp' in fit1dcurve.functions:
    default_type = 'gp'

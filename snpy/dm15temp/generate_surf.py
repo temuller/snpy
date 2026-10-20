@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from __future__ import print_function
 from snpy import dm15temp
 import os,sys
 import numpy as np

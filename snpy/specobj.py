@@ -8,7 +8,6 @@ from snpy.filters import filter
 from matplotlib import pyplot as plt
 from matplotlib.widgets import Button,CheckButtons
 import scipy
-import six
 
 cyc = plt.rcParams['axes.prop_cycle']
 colors = cyc.by_key()['color']
@@ -117,9 +116,9 @@ class timespec:
                        mags(floag array): synthetic magnitudes
       '''
       if not isinstance(band, filter) and not \
-            isinstance(band, six.string_types):
+            isinstance(band, str):
          raise ValueError("band must be string or filters.filter instance")
-      if isinstance(band, six.string_types):
+      if isinstance(band, str):
          band = fset[band]
       mags = np.array([band.synth_mag(spec,z=z,zeropad=zeropad) \
             for spec in self.spectra])
@@ -268,11 +267,11 @@ class InteractiveSpec:
    def bind_key(self, key, callback, helpmsg):
       '''Bind the function [callback] when [key] is pressed. [helpmsg]
       is the help message to pring when self.help() is called.'''
-      if not isinstance(key, six.string_types) or len(key) != 1:
+      if not isinstance(key, str) or len(key) != 1:
          raise TypeError("key must be a single character")
       if not callable(callback):
          raise TypeError("callback must be callable")
-      if not isinstance(helpmsg, six.string_types):
+      if not isinstance(helpmsg, str):
          raise ValueError("callback must be a string")
       self._binding_help[key] = helpmsg
       self._bindings[key] = callback

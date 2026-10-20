@@ -1,11 +1,8 @@
-from __future__ import print_function
 import numpy as np
 from .filters import fset
-import numpy.random as RA
 from .utils import fit1dcurve
 from .utils import InteractiveFit
 from . import plotmod
-from scipy.optimize import brentq
 
 if 'gp' in fit1dcurve.functions:
    default_method = 'gp'

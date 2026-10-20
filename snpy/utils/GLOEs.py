@@ -21,7 +21,6 @@ For a 2D surface, you use an elliptical Gaussian window function and fit a
 2D polynomial.'''
 import numpy as np
 from numpy import isinf,divide
-import sys
 from .fit_poly import fit2Dpoly
 from .fit_poly import fitpoly
 #from pygplot import *
@@ -48,7 +47,7 @@ def smooth(x, y, weight, xeval, sigma=None, N=None):
       return y[0] + (xeval-x[0])*sl, np.sqrt(err2), xeval*0+sl, xeval*0
 
    # dists[i,j] is the distance from point xeval[i] to data point x[j]
-   dists = x[NewAxis, :] - xeval[:, NewAxis]
+   dists = x[np.newaxis, :] - xeval[:, np.newaxis]
    if sigma is not None:
       # Use the same weighting function everywhere
       sigmas = xeval*0+sigma
@@ -71,14 +70,14 @@ def smooth(x, y, weight, xeval, sigma=None, N=None):
       sigmas = 10*np.array(FWHMs)
 
    # now weight these distances with a Gaussian
-   arg = -0.5*np.power(dists, 2)/np.power(sigmas[:,NewAxis],2)
+   arg = -0.5*np.power(dists, 2)/np.power(sigmas[:,np.newaxis],2)
    arg = np.where(np.less(arg, -100), -100, arg)
    err_d = np.exp(arg)
    # normalize
    #norm = sum(err_d, axis=1)
    norm = np.maximum.reduce(err_d, axis=1)
-   err_d = err_d/norm[:, NewAxis]
-   weight = err_d*np.power(weight[NewAxis,:],2)
+   err_d = err_d/norm[:, np.newaxis]
+   weight = err_d*np.power(weight[np.newaxis,:],2)
 
    # Lists of stuff we want to keep
    interps = []

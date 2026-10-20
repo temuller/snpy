@@ -5,7 +5,6 @@ from scipy.interpolate import splrep
 from scipy.interpolate import splev
 from scipy.integrate import quad
 import numpy as np
-import sys,os,string
 from snpy import spline2
 #import fit_lightcurves as lc
 import scipy

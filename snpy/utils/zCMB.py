@@ -7,11 +7,7 @@ Yes, let's do the math. It's not hard:  using astropy.coordinates, you can
 get the angular separation easily. We'll leave the NED version here for
 posterity, though.'''
 
-import six
-if six.PY3:
-   import urllib.request as urllib
-else:
-   import urllib
+import urllib.request as urllib
 import re
 from astropy.coordinates import SkyCoord
 from math import sin,cos,pi,sqrt

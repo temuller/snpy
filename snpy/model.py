@@ -6,9 +6,7 @@ classing Model and overriding the member functions.
 
 New:  Add an optional [decline_param] to choose between a dm15 model and stretch
       (st)  model'''
-from __future__ import print_function
-import six
-import os,string
+import os
 from snpy import ubertemp
 from snpy import kcorr
 from snpy.utils import redlaw
@@ -16,7 +14,6 @@ from snpy import salt_utils
 from snpy import mlcs_utils
 from snpy.filters import fset
 from numpy.linalg import cholesky
-from scipy import stats
 from scipy.optimize import leastsq
 from scipy.optimize import brent
 from scipy.interpolate import splrep,splev
@@ -1486,10 +1483,7 @@ class color_model(model):
       self.redlaw = self.args.get('redlaw', 'ccm')
       self.rvprior = self.args.get('rvprior', 'uniform')
       f = open(cfile, 'rb')
-      if six.PY3:
-         cdata = pickle.load(f, encoding='iso-8859-1')
-      else:
-         cdata = pickle.load(f)
+      cdata = pickle.load(f, encoding='iso-8859-1')
       f.close()
       if self.redlaw not in cdata or \
             self.rvprior not in cdata[self.redlaw]:
@@ -2069,7 +2063,7 @@ class MLCS_model(model):
       inp = 'fit,"{}"'.format(self.parent.name)
       #res = subprocess.run([self.idl], stdout=subprocess.PIPE, 
       #      stderr=subprocess.PIPE, input=bytes(inp, 'utf-8'))
-      if six.PY3: inp = bytes(inp, 'utf-8')
+      inp = bytes(inp, 'utf-8')
       try:
          p = subprocess.Popen([self.idl], stdout=subprocess.PIPE,
                stdin=subprocess.PIPE, stderr=subprocess.PIPE)

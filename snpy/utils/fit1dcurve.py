@@ -3,14 +3,11 @@ using several different methods (polynomial, splines, Gaussian processes),
 but providing a consistent API for evalutation and computing derivatives,
 extrama, etc.'''
 
-from __future__ import print_function
 import numpy as np
-from snpy.utils import fit_spline
 from scipy.interpolate import splrep,splev,sproot
-from scipy.optimize import brentq, newton
+from scipy.optimize import brentq
 #from scipy.misc import derivative as deriv
 from .derivative import derivative as deriv
-import six
 try:
    from snpy.spline2 import spline2, evalsp,eval_extrema,eval_x
 except:
@@ -25,24 +22,14 @@ except:
 # on-demand. We'll check for their existence, but that's it.
 
 gp = None
-if six.PY2:
-   import pkgutil
-   loader = pkgutil.find_loader('pymc')
-   if loader is not None:
-      gp = 'pymc'
-   else:
-      loader = pkgutil.find_loader('sklearn')
-      if loader is not None:
-         gp = 'sklearn'
+import importlib
+spec = importlib.util.find_spec('pymc')
+if spec is not None:
+   gp = 'pymc'
 else:
-   import importlib
-   spec = importlib.util.find_spec('pymc')
+   spec = importlib.util.find_spec('sklearn')
    if spec is not None:
-      gp = 'pymc'
-   else:
-      spec = importlib.util.find_spec('sklearn')
-      if spec is not None:
-         gp = 'sklearn'
+      gp = 'sklearn'
 #   try:
 #      import pymc
 #      from pymc import gp as GP

@@ -32,7 +32,6 @@ dependencies = [
     "scipy",
     "astropy",
     "matplotlib",
-    "six",
     "h5py",
     "onnxruntime",
     "emcee",

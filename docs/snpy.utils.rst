@@ -44,22 +44,6 @@ snpy.utils.InteractiveFit module
     :undoc-members:
     :show-inheritance:
 
-snpy.utils.fit_lc module
-------------------------
-
-.. automodule:: snpy.utils.fit_lc
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-snpy.utils.fit_lc2 module
--------------------------
-
-.. automodule:: snpy.utils.fit_lc2
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 snpy.utils.fit_poly module
 --------------------------
 

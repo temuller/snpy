@@ -5,8 +5,6 @@ do all the heavy lifting of fitting a smooth function. A base class called
 function is provided and should be sub-classed to implement new smoothing 
 functions.  So far, there's tension splines and CCM.'''
 
-from __future__ import print_function
-import types
 import numpy as np
 from numpy.linalg import lstsq
 from snpy.filters import fset
@@ -20,7 +18,6 @@ except:
 from snpy.utils import deredden
 from snpy.utils import mpfit
 from snpy.utils.bspline import bspline_basis
-import copy
 #from matplotlib import pyplot as plt
 
 filts = fset
