@@ -39,7 +39,7 @@ dependencies = [
     "scikit-learn"]
 
 [project.optional-dependencies]
-test = ["pytest"]
+test = ["pytest", "extinction"]
 interactive = ["ipython"]
 
 

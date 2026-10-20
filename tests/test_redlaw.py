@@ -85,3 +85,24 @@ def test_gal_law_affects_fit(datadir):
    fm = _fit_with_gal_law(datadir, 'fm')
    assert ccm['DM'] != fm['DM']
    assert ccm['EBVhost'] != fm['EBVhost']
+
+
+def test_fm_matches_reference_fitzpatrick99():
+   '''Cross-check our native `fm` law against the reference implementation.
+
+   ``snpy.utils.deredden.fm`` is the Fitzpatrick (1999) law.  The
+   `extinction` package's ``fitzpatrick99`` is an independent reference
+   (using the updated optical spline points from E. Fitzpatrick, matching
+   the Goddard FM_UNRED routine), so small (<1%) differences are expected.
+   Skipped when `extinction` is not installed.
+   '''
+   extinction = pytest.importorskip('extinction')
+   from snpy.utils import deredden
+
+   wave = np.arange(3000.0, 25000.0, 100.0)
+   for Rv in (2.5, 3.1, 4.0):
+      ours = deredden.fm(wave, R_V=Rv)            # A_lambda / E(B-V)
+      # fitzpatrick99 takes total A_V; passing a_v=Rv gives E(B-V)=1,
+      # so its output is also A_lambda/E(B-V) = R_lambda.
+      ref = extinction.fitzpatrick99(wave, Rv, Rv)
+      assert np.max(np.abs(ours - ref)) < 0.02
