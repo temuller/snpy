@@ -74,6 +74,21 @@ def test_dump_lc(snobj):
    assert os.path.isfile(snobj.name+"_lc_B_data.dat")
    os.system('rm SN2006ax*.dat')
 
+def test_dump_lc_scorrect_sign(snobj):
+   # S-correction converts observed -> rest band: rest = obs - Ss.
+   # A previous bug added Ss (mag + Ss) in dump_lc, inconsistent with
+   # merge_filters/ks (- correction).
+   import os
+   import numpy as np
+   filt = 'B'
+   snobj.Ss = {filt: np.full(len(snobj.data[filt].mag), 0.5)}
+   snobj.Ss_mask = {filt: np.ones(len(snobj.data[filt].mag), dtype=bool)}
+   snobj.dump_lc(s_correct=True)
+   d = np.loadtxt(snobj.name+"_lc_%s_data.dat" % filt)
+   expected = snobj.data[filt].mag - 0.5
+   assert np.allclose(d[:, 1], expected)
+   os.system('rm SN2006ax*.dat')
+
 def test_plot_sn(snobj):
    from snpy.myplotlib import PanelPlot
    ret = snobj.plot()

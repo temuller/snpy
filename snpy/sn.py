@@ -1429,9 +1429,12 @@ class sn(object):
                else:
                   flag = (not self.Ss_mask[filt][i])
                   Ss = self.Ss[filt][i]
+               # S-correction converts observed -> rest band: rest = obs - Ss
+               # (Ss is stored in the sense S = m(observed) - m(restband);
+               # see kcorr.S and the matching sign in merge_filters).
                print("%.2f  %.3f  %.3f  %d" % \
                      (self.data[filt].MJD[i]-toff, 
-                     self.data[filt].mag[i] + Ss - Alamb, 
+                     self.data[filt].mag[i] - Ss - Alamb, 
                      self.data[filt].e_mag[i], flag), file=f)
 
             else:
