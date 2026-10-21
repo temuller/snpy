@@ -1013,7 +1013,12 @@ class sn(object):
       else:
          epoch = self.data[band].t[i]/(1+self.z)
       kextrap = getattr(self, 'k_extrapolate', False)
-      wave,flux = kcorr.get_SED(int(epoch), version=self.k_version, 
+      # H3+L is defined on (epoch, sBV) and accepts fractional epochs, so do
+      # not truncate it to an integer (matching kcorr.kcorr).  For the other
+      # templates the epoch indexes an integer-day SED sequence.
+      if self.k_version != 'H3+L':
+         epoch = int(epoch)
+      wave,flux = kcorr.get_SED(epoch, version=self.k_version, 
             sBV=self.ks_s,extrapolate=kextrap)
       if self.ks_mopts[band][i]:
          man_flux = mangle_spectrum.apply_mangle(wave,flux, 

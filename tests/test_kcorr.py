@@ -76,3 +76,34 @@ def test_kcorr_mangle_H3L_multiday():
    assert all(isfinite(K))
 
 
+def test_get_mangled_SED_H3L_uses_fractional_epoch(snobj):
+   '''get_mangled_SED must pass the true (fractional) epoch for H3+L.
+
+   Regression test: it truncated the epoch to int, silently returning the
+   SED for a different day than the one used to compute the k-correction.
+   '''
+   import snpy
+   snobj.EBVgal = 0.041
+   snobj.k_version = 'H3+L'
+   snobj.choose_model('EBV_model2', stype='st')
+   snobj.fit(bands=['B', 'V'])
+
+   band = next(b for b in snobj.data if b in snobj.ks_mopts)
+   i = 0
+   wave, man_flux, oflux, mfunc = snobj.get_mangled_SED(band, i, normalize=False)
+   assert wave is not None
+
+   # the true (fractional) epoch: what the SED must be evaluated at
+   epoch = snobj.data[band].t[i]/(1+snobj.z)
+   assert epoch != int(epoch)   # sanity: this epoch actually is fractional
+   w_true, f_true = kcorr.get_SED(epoch, version='H3+L', sBV=snobj.ks_s)
+
+   # get_mangled_SED returns wave*(1+z); compare in the observed frame
+   f_true_on_wave = interp(wave, w_true*(1+snobj.z), f_true)
+   # the returned original SED should match the fractional-epoch template,
+   # i.e. NOT the floored one
+   w_int, f_int = kcorr.get_SED(int(epoch), version='H3+L', sBV=snobj.ks_s)
+   f_int_on_wave = interp(wave, w_int*(1+snobj.z), f_int)
+   assert sum(abs(oflux - f_true_on_wave)) < sum(abs(oflux - f_int_on_wave))
+
+
