@@ -801,7 +801,7 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
          if version != 'H3+L':
              day = int(days[j])
          else:
-             day = days[i]
+             day = days[j]
          s,f = get_SED(day, version, sBV=sBV, extrapolate=extrapolate)
          if s is None:
             spec_wavs.append(np.arange(980.,24981.0,10.))
@@ -1030,7 +1030,7 @@ def A_obs(filter, z, days, EBVhost, EBVgal, Rv_host=3.1, Rv_gal=3.1,
       if day > 70:  day = 69
       spec_wav,spec_f = get_SED(int(day), version, extrapolate=extrapolate)
       if spec_wav is None:
-         Rs.append(99.9)
+         As.append(99.9)
          continue
       # rEDDEN the spectrum based on Cardelli et al. and assumed EBVgal+EBVhost
       red_f = redden(spec_wav, spec_f, EBVgal, EBVhost, z, Rv_gal, Rv_host,

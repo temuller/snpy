@@ -44,3 +44,35 @@ def test_SEDs():
    assert (delta1 < 0.001) and (delta2 - 0.785952 < 0.001)
 
 
+def test_A_obs_out_of_range_sentinel():
+   '''A_obs must return the 99.9 sentinel, not raise, for out-of-range epochs.
+
+   Regression test: the guard used the wrong accumulator name (Rs instead of
+   As), so an epoch outside the template range raised NameError.
+   '''
+   # the 91bg template is only defined over (-13, 100); -18 stays below that
+   # even after A_obs's own clamping, so get_SED returns (None, None).
+   a = kcorr.A_obs('B', 0.01, [-18.], 0.05, 0.01, version='91bg')
+   assert array(a)[0] == 99.9
+   # valid epochs still return finite absorption
+   a2 = kcorr.A_obs('B', 0.01, [0., 20.], 0.05, 0.01, version='H3')
+   assert all(isfinite(a2)) and all(array(a2) < 90)
+
+
+def test_kcorr_mangle_H3L_multiday():
+   '''kcorr_mangle over several epochs with the H3+L template.
+
+   Regression test: the multi-epoch day-selection used days[i] (an
+   undefined name) instead of days[j] for H3+L.
+   '''
+   days = [0., 5., 10.]
+   filts = ['B', 'V']
+   mags = array([[15.0, 14.5], [15.1, 14.6], [15.3, 14.8]])
+   mmask = ones_like(mags, dtype=bool)
+   K, mask = kcorr.kcorr_mangle(days, filts, mags, mmask, ['B', 'V'], 0.01,
+         sBV=1.0, version='H3+L')
+   K = array(K)
+   assert K.shape == (3, 2)
+   assert all(isfinite(K))
+
+
