@@ -97,6 +97,12 @@ def test_plot_color(snobj):
 def test_compute_w(snobj):
    w = snobj.compute_w('B','B','V')
    assert len(w) == 4
+   mjd, wv, ew, flag = w
+   # Without interpolation the flag must be 0 for valid points: a previous
+   # bug returned a boolean validity mask added to the k-correction flag,
+   # spuriously setting bit 1 ("interpolated") on every good point.
+   assert np.all(flag == 0)
+   assert np.all(flag < 90)
 
 def test_mask_emag(snobj):
    snobj.mask_emag(0.01)

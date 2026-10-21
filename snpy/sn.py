@@ -2216,7 +2216,7 @@ class sn(object):
                      np.logical_not(self.ks_mask[band3][ids3]))*8
          else:
             k1 = k2 = k3 = 0
-            kflag = 0
+            kflag = mjd*0
 
          m1 = data[band1][gids] - k1; em1 = data['e_'+band1][gids]
          m2 = data[band2][gids] - k2; em2 = data['e_'+band2][gids]
@@ -2224,7 +2224,11 @@ class sn(object):
 
          w = m1 - R*(m2 - m3)
          ew = np.sqrt(em1**2 + R**2*(em2**2 + em3**2))
-         return mjd,w,ew,np.logical_not(np.isnan(w)) + kflag
+         # No interpolation is done here, so the only flag is the k-correction
+         # validity bit (8), matching get_color's non-interpolated branch.
+         # (Previously this returned a validity mask, then added the boolean
+         # mask to kflag, which spuriously set the "interpolated" bit 1.)
+         return mjd,w,ew,kflag
 
       # Here we need interpolation
       mjd,ms,ems,flags = self.interp_table([band1,band2,band3], 
