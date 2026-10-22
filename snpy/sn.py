@@ -879,6 +879,14 @@ class sn(object):
          s = 1.0
       else:
          s = 1.0
+      if self.k_version == 'H3+L':
+         # The NIR part of the H3+L SED is only defined for this range of sBV
+         smin,smax = kcorr.sBV_lims['H3+L']
+         if not smin <= s <= smax:
+            print("Warning:  stretch %.3f is outside the range of the H3+L SED" % s)
+            print("  (%.1f-%.1f). Using the closest limit for the k-corrections."\
+                  % (smin, smax))
+            s = min(max(s, smin), smax)
       self.ks_s = s
 
       if bands is None:  bands = list(self.data.keys())

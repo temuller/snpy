@@ -148,3 +148,15 @@ def test_extra_error_added_in_quadrature_to_free_params_only(snobj):
    assert m.errors['Tmax'] == 0
    for p in m._free:
       assert m.errors[p] == pytest.approx(num.sqrt(0.1**2 + m.C[p][p]))
+
+
+@pytest.mark.parametrize("st,expected", [(1.35, 1.3), (0.35, 0.4)])
+def test_H3L_kcorr_clamps_stretch_to_SED_range(snobj, st, expected):
+   """An 'st' outside the H3+L sBV range must not crash the k-corrections."""
+   snobj.replot = False
+   snobj.k_version = 'H3+L'
+   snobj.choose_model('max_model', stype='st')
+   snobj.fit(bands=['B', 'V'], dokcorr=False, st=st)
+   snobj.kcorr(bands=['B', 'V'], mangle=0)
+   assert snobj.ks_s == expected
+   assert num.all(num.isfinite(snobj.ks['B']))
