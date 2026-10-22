@@ -185,6 +185,11 @@ class model:
       Args:
          bands (list of str): The filters to fit
          epsfcn (float): see scipy.optmize.leastsq.
+         error_scaling (str): How the covariance matrix is scaled by the
+                     reduced chi-square: 'up' (default) only inflates the
+                     errors when chi2_nu > 1, 'always' also shrinks them when
+                     chi2_nu < 1 (the previous behaviour), 'none' leaves the
+                     purely statistical errors.
          
       Returns:
          None
@@ -194,6 +199,9 @@ class model:
          be set with best-fit values. self.C will be updated with the 
          values from the covariance matrix.
       '''
+      error_scaling = args.pop('error_scaling', 'up')
+      if error_scaling not in ['up', 'always', 'none']:
+         raise ValueError("error_scaling must be 'up', 'always' or 'none'")
       self.args = args.copy()
       if debug:  print("model.fit() called with args = ", args)
 
@@ -261,7 +269,12 @@ class model:
          raise RuntimeError("Error:  Covariance Matrix is singular.  " + \
                "Either two or more parameters are degenerate or the model " + \
                "has become insensitive to one or more parameters.")
-      C = C*self.rchisquare    # the trick for underestimated errors.
+      # the trick for underestimated errors: scale by chi2_nu (by default,
+      # only if the errors are underestimated, i.e. chi2_nu > 1)
+      if error_scaling == 'up':
+         C = C*max(1.0, self.rchisquare)
+      elif error_scaling == 'always':
+         C = C*self.rchisquare
       self.C = {}
       # Extra (systematic) errors only apply to free parameters and are
       # added in quadrature to the statistical errors.

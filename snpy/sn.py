@@ -1874,6 +1874,10 @@ class sn(object):
                             dm15/st of the object.
          margs (dict): A set of extra arguments to send to 
                        kcorr.mangle_spectrum.mangle_spectrum2()
+         error_scaling (str): 'up' (default) inflates the parameter errors
+                       by sqrt(chi2_nu) when chi2_nu > 1; 'always' also
+                       shrinks them when chi2_nu < 1 (previous behaviour);
+                       'none' gives purely statistical errors.
          kcorr_iter (int):  Maximum number of extra passes of (k-corrections,
                        fit) to do until the shape parameter and Tmax agree
                        with the ones the k-corrections were computed with

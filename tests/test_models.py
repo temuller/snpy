@@ -393,3 +393,27 @@ def test_fit_warns_if_kcorrs_do_not_converge(snobj):
    with pytest.warns(UserWarning, match="did not converge"):
       snobj.fit(bands=['B', 'V'], kcorr_iter=2)
    assert len(state['kcorrs']) == 4
+
+
+@pytest.mark.parametrize("inflate", [1.0, 3.0])     # chi2_nu > 1 and < 1
+def test_error_scaling_modes(snobj, inflate):
+   snobj.replot = False
+   for b in ['B', 'V']:
+      snobj.data[b].e_mag = snobj.data[b].e_mag*inflate
+   errs = {}
+   for mode in ['none', 'always', 'up']:
+      snobj.choose_model('max_model', stype='st')
+      snobj.fit(bands=['B', 'V'], dokcorr=False, error_scaling=mode)
+      errs[mode] = dict(snobj.model.errors)
+      r = snobj.model.rchisquare
+   assert (r > 1) == (inflate == 1.0)
+   for p in ['st', 'Bmax', 'Vmax']:
+      assert errs['always'][p] == pytest.approx(errs['none'][p]*num.sqrt(r), rel=1e-6)
+      assert errs['up'][p] == pytest.approx(errs['none'][p]*num.sqrt(max(1, r)), rel=1e-6)
+
+
+def test_error_scaling_rejects_unknown_mode(snobj):
+   snobj.replot = False
+   snobj.choose_model('max_model', stype='st')
+   with pytest.raises(ValueError, match="error_scaling"):
+      snobj.fit(bands=['B', 'V'], dokcorr=False, error_scaling='down')
