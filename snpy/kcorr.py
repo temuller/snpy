@@ -307,6 +307,10 @@ def predict_NIR_PCs(epochs, sBV):
    '''
    keys = [(float(epoch), float(sBV)) for epoch in epochs]
    todo = sorted(set(key for key in keys if key not in _PC_cache))
+   if len(_PC_cache) + len(todo) > _PC_cache_max:
+      # make room before computing, so every requested key ends up cached
+      _PC_cache.clear()
+      todo = sorted(set(keys))
    if todo:
       X = np.array(todo, dtype=np.float64)
       preds = {}
@@ -321,8 +325,6 @@ def predict_NIR_PCs(epochs, sBV):
             ## unnormalize the predicted y using the yrange and min
             vals[:,i] = y_gp*GPR["yrange"] + GPR["ymin"]
          preds[Wbin] = vals
-      if len(_PC_cache) + len(todo) > _PC_cache_max:
-         _PC_cache.clear()
       for k,key in enumerate(todo):
          _PC_cache[key] = {Wbin:preds[Wbin][k] for Wbin in preds}
    return [_PC_cache[key] for key in keys]

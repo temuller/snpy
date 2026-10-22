@@ -146,3 +146,13 @@ def test_R_obs_H3L_uses_sBV_and_fractional_epoch():
    assert R == pytest.approx(expected, rel=1e-10)
    assert R != pytest.approx(
          kcorr.R_obs('H', z, day, EBV, 0.0, version='H3+L', sBV=1.0), rel=1e-6)
+
+
+def test_NIR_PC_cache_overflow_keeps_requested_epochs(monkeypatch):
+   '''Clearing a full cache must not drop epochs requested in the same call.'''
+   monkeypatch.setattr(kcorr, '_PC_cache_max', 3)
+   kcorr._PC_cache.clear()
+   kcorr.predict_NIR_PCs([1.0, 2.0], 0.9)
+   kcorr.predict_NIR_PCs([3.0], 0.9)                     # cache now full
+   PCs = kcorr.predict_NIR_PCs([1.0, 4.0, 5.0], 0.9)     # 1.0 cached; overflows
+   assert len(PCs) == 3
