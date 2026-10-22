@@ -154,6 +154,12 @@ class model:
             R = self.MWRobs[band]
       return R
 
+   def _sBV(self):
+      '''The color stretch used for the k-corrections (see sn.kcorr), for
+      computing R_obs with the H3+L SED.'''
+      lo,hi = kcorr.sBV_lims['H3+L']
+      return min(max(getattr(self.parent, 'ks_s', 1.0), lo), hi)
+
    def _extra_error(self, parameters):
       return 0
 
@@ -437,7 +443,7 @@ class EBV_model(model):
          self.Robs[band] = kcorr.R_obs(band, self.parent.z, 0, 0.01, 0,
                self.Rv_host[cal], self.parent.Rv_gal, self.parent.k_version,
                redlaw=self.parent.redlaw, redlaw_gal=self.parent.redlaw_gal,
-               extrapolate=self.parent.k_extrapolate)
+               extrapolate=self.parent.k_extrapolate, sBV=self._sBV())
       
    def guess(self, param):
       s = self.parent
@@ -482,7 +488,7 @@ class EBV_model(model):
                self.parent.Rv_gal, self.parent.k_version, 
                redlaw=self.parent.redlaw,
                      redlaw_gal=self.parent.redlaw_gal,
-               extrapolate=self.parent.k_extrapolate)
+               extrapolate=self.parent.k_extrapolate, sBV=self._sBV())
          temp = temp + self.Robs[band]*(self.EBVhost + self.parent.EBVgal)
       else:
          # Apply Robs*EBVgal:
@@ -529,13 +535,13 @@ class EBV_model(model):
                                   self.parent.k_version,
                                   redlaw=self.parent.redlaw,
                      redlaw_gal=self.parent.redlaw_gal,
-                                  extrapolate=self.parent.k_extrapolate)
+                                  extrapolate=self.parent.k_extrapolate, sBV=self._sBV())
                EBV = max(self.EBVhost, 0.01)
                Robs = kcorr.R_obs(band, self.parent.z, 0, EBV,
                      0, self.Rv_host[self.calibration], self.parent.Rv_gal,
                      self.parent.k_version, redlaw=self.parent.redlaw,
                      redlaw_gal=self.parent.redlaw_gal,
-                     extrapolate=self.parent.k_extrapolate)
+                     extrapolate=self.parent.k_extrapolate, sBV=self._sBV())
                mmax = mmax + Robs*self.EBVhost + R*self.parent.EBVgal
          Mmaxs.append(mmax)
          eMmaxs.append(self.errors['DM'])
@@ -579,7 +585,7 @@ class EBV_model(model):
                self.parent.EBVgal, self.Rv_host[calibration], 
                self.parent.Rv_gal, self.parent.k_version, 
                redlaw=self.parent.redlaw, redlaw_gal=self.parent.redlaw_gal,
-               extrapolate=self.parent.k_extrapolate)
+               extrapolate=self.parent.k_extrapolate, sBV=self._sBV())
          dRobs = Robs*self.dRv_host[calibration]/self.Rv_host[calibration]
          syst_DM.append(np.power(ddm15*self.db[calibration],2)+\
                         np.power(ddm15*self.dcolor_slopes[rb],2)+\
@@ -684,7 +690,7 @@ class EBV_model2(model):
                self.Rv_host[self.calibration], self.parent.Rv_gal, 
                self.parent.k_version, redlaw=self.parent.redlaw,
                      redlaw_gal=self.parent.redlaw_gal,
-               extrapolate=self.parent.k_extrapolate)
+               extrapolate=self.parent.k_extrapolate, sBV=self._sBV())
       
    def guess(self, param):
       s = self.parent
@@ -729,7 +735,7 @@ class EBV_model2(model):
                self.parent.EBVgal, self.Rv_host[self.calibration], 
                self.parent.Rv_gal, self.parent.k_version,
                redlaw=self.parent.redlaw, redlaw_gal=self.parent.redlaw_gal,
-               extrapolate=self.parent.k_extrapolate)
+               extrapolate=self.parent.k_extrapolate, sBV=self._sBV())
          temp = temp + self.Robs[band]*(self.EBVhost + self.parent.EBVgal)
       else:
          # Apply Robs*EBVgal:
@@ -775,13 +781,13 @@ class EBV_model2(model):
                                   self.parent.Rv_gal, self.parent.k_version,
                                   redlaw=self.parent.redlaw,
                      redlaw_gal=self.parent.redlaw_gal,
-                                  extrapolate=self.parent.k_extrapolate)
+                                  extrapolate=self.parent.k_extrapolate, sBV=self._sBV())
                EBV = max(self.EBVhost, 0.01)
                Robs = kcorr.R_obs(band, self.parent.z, 0, EBV,
                      0, self.Rv_host[self.calibration], self.parent.Rv_gal,
                      self.parent.k_version, redlaw=self.parent.redlaw,
                      redlaw_gal=self.parent.redlaw_gal,
-                     extrapolate=self.parent.k_extrapolate)
+                     extrapolate=self.parent.k_extrapolate, sBV=self._sBV())
                mmax = mmax + Robs*self.EBVhost + R*self.parent.EBVgal
          Mmaxs.append(mmax)
          eMmaxs.append(self.errors['DM'])
@@ -826,7 +832,7 @@ class EBV_model2(model):
                self.parent.Rv_gal, self.parent.k_version,
                redlaw=self.parent.redlaw,
                      redlaw_gal=self.parent.redlaw_gal,
-               extrapolate=self.parent.k_extrapolate)
+               extrapolate=self.parent.k_extrapolate, sBV=self._sBV())
          dRobs = Robs*self.eRv_host[calibration]/self.Rv_host[calibration]
          syst_DM.append(np.power(dst*self.eb[calibration][rb],2)+\
                         np.power(self.EBVhost*dRobs, 2)+\
@@ -996,7 +1002,7 @@ class max_model(model):
                      self.parent.EBVgal, self.parent.Rv_gal, 
                      version=self.parent.k_version,
                      redlaw=self.parent.redlaw_gal,
-                     extrapolate=self.parent.k_extrapolate)
+                     extrapolate=self.parent.k_extrapolate, sBV=self._sBV())
 
             mmax = mmax + R*self.parent.EBVgal
          Mmaxs.append(mmax)
@@ -1205,7 +1211,7 @@ class max_model2(model):
                      self.parent.EBVgal, self.parent.Rv_gal, 
                      version=self.parent.k_version,
                      redlaw=self.parent.redlaw_gal,
-                     extrapolate=self.parent.k_extrapolate)
+                     extrapolate=self.parent.k_extrapolate, sBV=self._sBV())
 
             mmax = mmax + R*self.parent.EBVgal
          Mmaxs.append(mmax)

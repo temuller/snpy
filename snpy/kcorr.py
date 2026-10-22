@@ -1010,9 +1010,16 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
    else:
       return(kcorrs, mask, Rts, m_opts)
 
+def _get_SED_for_day(day, version, sBV, extrapolate):
+   '''get_SED() as used by the R_obs/A_obs family: integer days, except for
+   H3+L, which is defined at fractional epochs and depends on sBV.'''
+   if version != 'H3+L':
+      day = int(day)
+   return get_SED(day, version, sBV=sBV, extrapolate=extrapolate)
+
 def R_obs_abc(filter1, filter2, filter3, z, days, EBVhost, EBVgal, 
       Rv_host=3.1, Rv_gal=3.1, version='H', redlaw='f99', strict_ccm=False,
-      extrapolate=False, redlaw_gal=None, redlaw_host=None):
+      extrapolate=False, redlaw_gal=None, redlaw_host=None, sBV=1.0):
    '''Compute the observed value of the selective-to-total extinction, R,
    by applying an extinction curve to a set of library Ia spectral SEDs and
    computing synthetic photometry:
@@ -1050,9 +1057,11 @@ def R_obs_abc(filter1, filter2, filter3, z, days, EBVhost, EBVgal,
       days = [days]
       outarr = 0
 
+   if version == 'H3+L':
+      _prefetch_NIR_PCs(days, sBV)
    Rs = []
    for day in days:
-      spec_wav,spec_f = get_SED(int(day), version, extrapolate=extrapolate)
+      spec_wav,spec_f = _get_SED_for_day(day, version, sBV, extrapolate)
       if spec_wav is None:
          Rs.append(99.9)
          continue
@@ -1082,7 +1091,7 @@ def R_obs_abc(filter1, filter2, filter3, z, days, EBVhost, EBVgal,
 
 def A_obs(filter, z, days, EBVhost, EBVgal, Rv_host=3.1, Rv_gal=3.1, 
       version='H3', extrapolate=False, redlaw='ccm', redlaw_gal=None,
-      redlaw_host=None):
+      redlaw_host=None, sBV=1.0):
    try:
       N = len(days)
       outarr = 1
@@ -1090,11 +1099,13 @@ def A_obs(filter, z, days, EBVhost, EBVgal, Rv_host=3.1, Rv_gal=3.1,
       days = [days]
       outarr = 0
 
+   if version == 'H3+L':
+      _prefetch_NIR_PCs(days, sBV)
    As = []
    for day in days:
       if day < -19:  day=-18
       if day > 70:  day = 69
-      spec_wav,spec_f = get_SED(int(day), version, extrapolate=extrapolate)
+      spec_wav,spec_f = _get_SED_for_day(day, version, sBV, extrapolate)
       if spec_wav is None:
          As.append(99.9)
          continue
@@ -1117,7 +1128,7 @@ def A_obs(filter, z, days, EBVhost, EBVgal, Rv_host=3.1, Rv_gal=3.1,
 
 def R_obs(filter, z, days, EBVhost, EBVgal, Rv_host=3.1, Rv_gal=3.1, 
       version='H', redlaw='f99', strict_ccm=False, extrapolate=False,
-      redlaw_gal=None, redlaw_host=None):
+      redlaw_gal=None, redlaw_host=None, sBV=1.0):
    '''Compute the 'true' value of R based on a fiducial value of Rv for both Galactic and
    host extinction and the SED of a supernova.  The filter is such that:
 
@@ -1125,7 +1136,8 @@ def R_obs(filter, z, days, EBVhost, EBVgal, Rv_host=3.1, Rv_gal=3.1,
 
    ``redlaw`` sets the curve for both components; ``redlaw_gal`` and
    ``redlaw_host`` override it for the Milky Way and host components
-   respectively (default: use ``redlaw``).
+   respectively (default: use ``redlaw``). ``sBV`` is the color stretch
+   of the SN, only used by version='H3+L'.
    '''
    try:
       N = len(days)
@@ -1134,11 +1146,13 @@ def R_obs(filter, z, days, EBVhost, EBVgal, Rv_host=3.1, Rv_gal=3.1,
       days = [days]
       outarr = 0
 
+   if version == 'H3+L':
+      _prefetch_NIR_PCs(days, sBV)
    Rs = []
    for day in days:
       if day < -19:  day=-18
       if day > 70:  day = 69
-      spec_wav,spec_f = get_SED(int(day), version, extrapolate=extrapolate)
+      spec_wav,spec_f = _get_SED_for_day(day, version, sBV, extrapolate)
       if spec_wav is None:
          Rs.append(99.9)
          continue

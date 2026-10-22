@@ -134,3 +134,15 @@ def test_NIR_PCs_batched_match_single_epoch_GPR():
          single,_ = kcorr.GPR_predict_PC(Wbin, epoch, sBV)
          assert allclose(PCs[Wbin], array(single)*kcorr._PC_mask(Wbin),
                          rtol=1e-12, atol=0)
+
+
+def test_R_obs_H3L_uses_sBV_and_fractional_epoch():
+   '''R_obs with H3+L must use the SED at the requested (fractional) epoch
+   and color stretch, not int(day) and sBV=1.'''
+   z, EBV, day, sBV = 0.01, 0.1, 3.6, 0.6
+   R = kcorr.R_obs('H', z, day, EBV, 0.0, version='H3+L', sBV=sBV)
+   w, f = kcorr.get_SED(day, 'H3+L', sBV=sBV)
+   expected = kcorr.R_obs_spectrum(['H'], w, f, z, 0.0, EBV, redlaw='f99')[0]
+   assert R == pytest.approx(expected, rel=1e-10)
+   assert R != pytest.approx(
+         kcorr.R_obs('H', z, day, EBV, 0.0, version='H3+L', sBV=1.0), rel=1e-6)
