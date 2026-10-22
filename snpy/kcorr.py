@@ -72,7 +72,16 @@ n91_wav = head['CRVAL1']+(np.arange(head['NAXIS1'],dtype=np.float32) - \
 # read in building blocks for Lu2023 NIR template:
 NIR_temp_path = os.path.join(spec_base, 'NIR_template_buildingblocks.h5')
 NIR_temp_dict = {}
-# Open the HDF5 file in read mode and load the onnx model too 
+# The GPR models are tiny, but every InferenceSession gets its own thread pool
+# (one thread per core) whose threads spin-wait between calls. With ~100
+# sessions that means thousands of threads keeping every core busy even when
+# idle, so run each session single-threaded and without spinning.
+_onnx_opts = onnx_rt.SessionOptions()
+_onnx_opts.intra_op_num_threads = 1
+_onnx_opts.inter_op_num_threads = 1
+_onnx_opts.add_session_config_entry("session.intra_op.allow_spinning", "0")
+_onnx_opts.add_session_config_entry("session.inter_op.allow_spinning", "0")
+# Open the HDF5 file in read mode and load the onnx model too
 with h5py.File(NIR_temp_path, "r") as file:
     # Iterate over the dataset keys and values
     for key, value in file.items():
@@ -90,7 +99,8 @@ with h5py.File(NIR_temp_path, "r") as file:
                                     NIR_temp_dict[key][subkey][subsubkey][subsubsubkey] = np.bytes_(subsubsubvalue[()])
                                     # load the model here is better than in the function - since this is the slow part 
                                     NIR_temp_dict[key][subkey][subsubkey]["GPR_onx"] = onnx_rt.InferenceSession(
-                                                                                          subsubsubvalue[()], providers=["CPUExecutionProvider"]
+                                                                                          subsubsubvalue[()], sess_options=_onnx_opts,
+                                                                                          providers=["CPUExecutionProvider"]
                                                                                     )
                                 else:
                                     NIR_temp_dict[key][subkey][subsubkey][subsubsubkey] = subsubsubvalue[()]
