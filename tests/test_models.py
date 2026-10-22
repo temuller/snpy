@@ -22,31 +22,31 @@ results = {
       'EBV_model':
           {'DM': 34.159,
            'EBVhost': -0.003,
-           'Tmax': 827.671,
+           'Tmax': 827.681,
            'dm15': 1.086},
       'EBV_model2':
            {'DM': 34.254,
             'EBVhost': 0.0091,
-            'Tmax': 827.564,
-            'st': 0.962},
+            'Tmax': 827.570,
+            'st': 0.963},
       'max_model':
            {'Bmax': 15.001,
             'Hmax': 15.991,
-            'Jmax': 15.642,
-            'Tmax': 827.547,
-            'Vmax': 15.068,
+            'Jmax': 15.641,
+            'Tmax': 827.553,
+            'Vmax': 15.069,
             'Ymax': 15.757,
             'gmax': 14.957,
             'imax': 15.695,
             'rmax': 15.123,
-            'st': 0.969,
+            'st': 0.970,
             'umax': 15.399},
       'color_model':
            {'Bmax': 14.834,
             'EBVhost': 0.040,
             'Rv': 3.1,
-            'Tmax': 827.565,
-            'st': 0.962},
+            'Tmax': 827.571,
+            'st': 0.963},
 }
 SALT_results = {
             'X0':0.018,
@@ -182,3 +182,33 @@ def test_EBV_model2_systematics_uses_fit_calibration(snobj, fit_args, calibratio
    DM = snobj.systematics()['DM']
    assert DM == pytest.approx(snobj.systematics(calibration=calibration)['DM'])
    assert DM != pytest.approx(snobj.systematics(calibration=other)['DM'])
+
+
+@pytest.mark.parametrize("kind,param", [("stemplate", 0.9), ("template", 1.3)])
+@pytest.mark.parametrize("band", ['u', 'i', 'H'])
+def test_template_offset_is_time_dilated(kind, param, band):
+   """The band's Tmax - Tmax(B) offset is a rest-frame quantity, so the
+   redshifted template must be the rest-frame one stretched by (1+z)."""
+   from snpy import ubertemp
+   temp = getattr(ubertemp, kind)()
+   temp.mktemplate(param)
+   z = 0.3
+   t = num.linspace(-8., 30., 40)
+   m0, e0, mask0 = temp.eval(band, t, 0, gen=2)
+   mz, ez, maskz = temp.eval(band, t*(1+z), z, gen=2)
+   assert num.array_equal(mask0, maskz)
+   assert num.allclose(m0[mask0], mz[maskz], rtol=0, atol=1e-10)
+
+
+def test_st_template_gen3_uses_gen3_Tmax_offsets():
+   from snpy import ubertemp
+   from snpy.CSPtemp import Tmax_splines
+   temp = ubertemp.stemplate()
+   temp.mktemplate(0.9)
+   dT = float(Tmax_splines['i'](0.9))
+   assert temp.Ct.deltaTmax('i', 3) == pytest.approx(dT)
+   t = num.linspace(-5., 30., 30)
+   m1 = temp.eval('i', t, gen=3)[0]
+   m2 = temp.eval('i', t - dT, gen=3, toff=False)[0]
+   assert num.allclose(m1, m2)
+   assert temp.Ct.deltaTmax('B', 3) == 0

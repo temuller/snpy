@@ -93,7 +93,7 @@ class dm15_template:
          self.setup_interpolators()
 
       if toff:
-         evt = (times - self.deltaTmax(band))/(1+z)
+         evt = times/(1+z) - self.deltaTmax(band)
       else:
          evt = times/(1+z)
 
@@ -178,7 +178,7 @@ class st_template:
          self.setup_interpolators()
 
       if toff:
-         evt = (times - self.deltaTmax(band))/(1+z)
+         evt = times/(1+z) - self.deltaTmax(band)
       else:
          evt = times/(1+z)
 

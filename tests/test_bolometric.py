@@ -28,7 +28,7 @@ def test_bolo_direct_model(snobj):
    x,y,f,lims = snobj.bolometric(['u','B','V','r','i','Y','J','H'], 
       method='direct', interpolate='model', SED='H3')
    checksum = sum(y)*1.e-44
-   assert round(checksum,2) == round(2.56, 2)
+   assert round(checksum,2) == round(2.57, 2)
 
 def test_bolo_SED(snobj):
    from snpy import fset

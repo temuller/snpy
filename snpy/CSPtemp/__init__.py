@@ -352,7 +352,7 @@ class dm15_template:
       otherwise, Tmax will be at 0 for every filter.'''
 
       if toff:
-         evt = (times - self.deltaTmax(band))/(1+z)
+         evt = times/(1+z) - self.deltaTmax(band)
       else:
          evt = times/(1+z)
 
@@ -457,7 +457,7 @@ class st_template:
    def deltaTmax(self, band, gen=1):
       '''Given the current dm15, what is the time of maximum of [band]
       relative to B-band.'''
-      if gen > 2:
+      if gen > 2 and band in Tmax_splines:
          return Tmax_splines[band](self.st)
       if band == 'V':  return 1.33
       if band == 'u':  return -1.60
@@ -487,7 +487,7 @@ class st_template:
       otherwise, Tmax will be at 0 for every filter.'''
 
       if toff:
-         evt = (times - self.deltaTmax(band))/(1+z)
+         evt = times/(1+z) - self.deltaTmax(band, gen)
       else:
          evt = times/(1+z)
 
