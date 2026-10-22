@@ -228,3 +228,30 @@ def test_get_max_Tmax_is_in_observer_frame(snobj, model):
    m.template.mktemplate(m.parameters[m.stype])
    mag = m.template.eval('i', t - m.Tmax, snobj.z, gen=m.gen)[0]
    assert Tmaxs[0] == pytest.approx(t[num.argmin(mag)], abs=2e-3)
+
+
+@pytest.mark.parametrize("k_version", ['H3', 'H3+L'])
+def test_kcorr_mask_uses_restframe_SED_epochs(snobj, k_version):
+   """The model's k-correction mask must cut on the same rest-frame epochs
+   (and SED limits) that sn.kcorr used, not on observer-frame days."""
+   from snpy import kcorr
+   snobj.replot = False
+   snobj.k_version = k_version
+   snobj.choose_model('max_model', stype='st')
+   snobj.fit(bands=['B', 'V'], dokcorr=False)
+   snobj.kcorr(bands=['B', 'V'], mangle=0)
+   m = snobj.model
+   snobj.z = 0.2      # exaggerate time dilation
+   s = snobj.ks_s
+   t = num.linspace(-30, 120, 1501)
+   K, mask = m.kcorr('B', t)
+   epoch = t/(1 + snobj.z)
+   if k_version == 'H3+L':
+      expected = (epoch >= -19) & (epoch <= 70) & (epoch/s > -19) & (epoch/s <= 70)
+   else:
+      expected = (epoch/s >= -19) & (epoch/s <= 70)
+   # combined with the validity of the nearest data point's k-correction
+   mids = num.argmin(num.absolute(t[:,None] - snobj.data['B'].MJD[None,:] + m.Tmax),
+                     axis=1)
+   expected &= snobj.ks_mask['B'][mids].astype(bool)
+   assert num.array_equal(mask.astype(bool), expected)

@@ -118,10 +118,22 @@ class model:
          K = np.where(np.greater(t+self.Tmax, tck[0][-1]), k1, K)
          mids = np.argmin(np.absolute(t[:,np.newaxis]-self.parent.data[band].MJD[np.newaxis,:]+\
                self.Tmax), axis=1)
-         # mask based on original mask and limits of Hsiao spectrum
+         # mask based on original mask and the epochs covered by the SED,
+         # using the same rest-frame epochs as sn.kcorr()
          ks_st = getattr(self.parent, 'ks_s', 1.0)
-         mask2 = self.parent.ks_mask[band][mids]*\
-               np.greater_equal(t/ks_st, -19)*np.less_equal(t/ks_st, 70)
+         version = self.parent.k_version
+         lo,hi = kcorr.SED_lims[version]
+         epoch = t/(1+self.parent.z)
+         if version != 'H3+L':
+            epoch = epoch/ks_st
+            valid = np.greater_equal(epoch, lo)*np.less_equal(epoch, hi)
+         else:
+            # the NIR part is evaluated at epoch, the optical (H3) part
+            # at epoch/sBV (see kcorr.get_SED_H3_plus_L)
+            hlo,hhi = kcorr.SED_lims['H3']
+            valid = np.greater_equal(epoch, lo)*np.less_equal(epoch, hi)*\
+                  np.greater(epoch/ks_st, hlo)*np.less_equal(epoch/ks_st, hhi)
+         mask2 = self.parent.ks_mask[band][mids]*valid
       else:
          K = 0*t
          mask2 = np.ones(t.shape, dtype=np.bool)
