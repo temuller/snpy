@@ -212,3 +212,19 @@ def test_st_template_gen3_uses_gen3_Tmax_offsets():
    m2 = temp.eval('i', t - dT, gen=3, toff=False)[0]
    assert num.allclose(m1, m2)
    assert temp.Ct.deltaTmax('B', 3) == 0
+
+
+@pytest.mark.parametrize("model", ['max_model', 'EBV_model2'])
+def test_get_max_Tmax_is_in_observer_frame(snobj, model):
+   """get_max must convert the rest-frame template peak to observed days."""
+   snobj.replot = False
+   snobj.choose_model(model, stype='st')
+   snobj.fit(dokcorr=False)
+   m = snobj.model
+   snobj.z = 0.3      # exaggerate time dilation
+   Tmaxs, Mmaxs, eMmaxs, rbands = m.get_max(['i'])
+   # numerically locate the observed-frame peak of the model light curve
+   t = m.Tmax + num.linspace(-15, 15, 30001)
+   m.template.mktemplate(m.parameters[m.stype])
+   mag = m.template.eval('i', t - m.Tmax, snobj.z, gen=m.gen)[0]
+   assert Tmaxs[0] == pytest.approx(t[num.argmin(mag)], abs=2e-3)

@@ -483,7 +483,7 @@ class EBV_model(model):
       # Apply reddening correction:
       # Figure out the reddening law
       if self.do_Robs:
-         self.Robs[band] = kcorr.R_obs(band, self.parent.z, t, self.EBVhost,
+         self.Robs[band] = kcorr.R_obs(band, self.parent.z, t/(1+self.parent.z), self.EBVhost,
                self.parent.EBVgal, self.Rv_host[self.calibration], 
                self.parent.Rv_gal, self.parent.k_version, 
                redlaw=self.parent.redlaw,
@@ -507,7 +507,7 @@ class EBV_model(model):
          rband = self.parent.restbands[band]
          # find where the template truly peaks:
          x0 = brent(lambda x: self.template.eval(rband, x, gen=self.gen)[0], brack=(0.,5.))
-         Tmaxs.append(x0 + self.Tmax)
+         Tmaxs.append(x0*(1+self.parent.z) + self.Tmax)
          mmax = self.DM + self.MMax(rband, self.calibration)
          if not restframe and band in self.parent.ks_tck:
             # add the K-correction
@@ -731,7 +731,7 @@ class EBV_model2(model):
       # Apply reddening correction:
       # Figure out the reddening law
       if self.do_Robs:
-         self.Robs[band] = kcorr.R_obs(band, self.parent.z, t, self.EBVhost,
+         self.Robs[band] = kcorr.R_obs(band, self.parent.z, t/(1+self.parent.z), self.EBVhost,
                self.parent.EBVgal, self.Rv_host[self.calibration], 
                self.parent.Rv_gal, self.parent.k_version,
                redlaw=self.parent.redlaw, redlaw_gal=self.parent.redlaw_gal,
@@ -754,7 +754,7 @@ class EBV_model2(model):
          rband = self.parent.restbands[band]
          # find where the template truly peaks:
          x0 = brent(lambda x: self.template.eval(rband, x, gen=self.gen)[0], brack=(0.,5.))
-         Tmaxs.append(x0 + self.Tmax)
+         Tmaxs.append(x0*(1+self.parent.z) + self.Tmax)
          mmax = self.DM + self.MMax(rband, self.calibration)
          if not restframe and band in self.parent.ks_tck:
             # add the K-correction
@@ -983,7 +983,7 @@ class max_model(model):
          rband = self.parent.restbands[band]
          # find where the template truly peaks:
          x0 = brent(lambda x: self.template.eval(rband, x, gen=self.gen)[0], brack=(0.,5.))
-         Tmaxs.append(x0 + self.Tmax)
+         Tmaxs.append(x0*(1+self.parent.z) + self.Tmax)
          if rband+"max" not in self.parameters:
             raise ValueError("Trying to find max of %s, but haven't solved for %s" %\
                   (band, rband+"max"))
@@ -994,11 +994,11 @@ class max_model(model):
          if not deredden:
             if band in self.parent.Robs:
                if type(self.parent.Robs[band]) is type(()):
-                  R = scipy.interpolate.splev(x0+self.Tmax, self.parent.Robs[band])
+                  R = scipy.interpolate.splev(Tmaxs[-1], self.parent.Robs[band])
                else:
                   R = self.parent.Robs[band]
             else:
-               R = kcorr.R_obs(band, self.parent.z, int(np.floor(x0)), 0.0, 
+               R = kcorr.R_obs(band, self.parent.z, x0, 0.0, 
                      self.parent.EBVgal, self.parent.Rv_gal, 
                      version=self.parent.k_version,
                      redlaw=self.parent.redlaw_gal,
@@ -1194,7 +1194,7 @@ class max_model2(model):
          if rband+"max" not in self.parameters:
             raise ValueError("Trying to find max of %s, but haven't solved for %s" %\
                   (band, rband+"max"))
-         Tmaxs.append(x0 + self.parameters['T'+rband+'max'])
+         Tmaxs.append(x0*(1+self.parent.z) + self.parameters['T'+rband+'max'])
          mmax = self.parameters[rband+'max']
          if not restframe and band in self.parent.ks_tck:
             # add the K-correction
@@ -1202,12 +1202,12 @@ class max_model2(model):
          if not deredden:
             if band in self.parent.Robs:
                if type(self.parent.Robs[band]) is type(()):
-                  R = scipy.interpolate.splev(x0+self.parameters['T'+rband+'max'], 
+                  R = scipy.interpolate.splev(Tmaxs[-1], 
                         self.parent.Robs[band])
                else:
                   R = self.parent.Robs[band]
             else:
-               R = kcorr.R_obs(band, self.parent.z, int(np.floor(x0)), 0.0, 
+               R = kcorr.R_obs(band, self.parent.z, x0, 0.0, 
                      self.parent.EBVgal, self.parent.Rv_gal, 
                      version=self.parent.k_version,
                      redlaw=self.parent.redlaw_gal,
@@ -1386,7 +1386,7 @@ class Rv_model(model):
          rband = self.parent.restbands[band]
          # find where the template truly peaks:
          x0 = brent(lambda x: self.template.eval(rband, x, gen=self.gen)[0], brack=(0.,5.))
-         Tmaxs.append(x0 + self.Tmax)
+         Tmaxs.append(x0*(1+self.parent.z) + self.Tmax)
          mmax = self.Bmax + self.MMax(rband, self.calibration) - \
                self.MMax('B', self.calibation)
          if not restframe and band in self.parent.ks_tck:
@@ -1395,7 +1395,7 @@ class Rv_model(model):
          if not deredden:
             if band in self.parent.Robs:
                if type(self.parent.Robs[band]) is type(()):
-                  Rmw = scipy.interpolate.splev(x0+self.Tmax, 
+                  Rmw = scipy.interpolate.splev(Tmaxs[-1], 
                         self.parent.Robs[band])
                else:
                   Rmw = self.parent.Robs[band]
@@ -1631,7 +1631,7 @@ class color_model(model):
          # find where the template truly peaks:
          x0 = brent(lambda x: self.template.eval(rband, x, gen=self.gen)[0], 
                     brack=(0.,5.))
-         Tmaxs.append(x0 + self.Tmax)
+         Tmaxs.append(x0*(1+self.parent.z) + self.Tmax)
 
          mmax = self.Bmax
          var = var + self.errors['Bmax']**2
