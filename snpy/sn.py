@@ -858,6 +858,11 @@ class sn(object):
       if use_stretch and self.k_version != '91bg':
          dm15 = getattr(self, 'dm15', None)
          st = getattr(self, 'st', None)
+         # A fitted 'st' takes precedence: self.dm15 otherwise falls back to
+         # a dm15 measured from a light-curve fit of the B band.
+         model = self.__dict__.get('model', None)
+         if model is not None and model.parameters.get('st') is not None:
+            dm15 = None
          if dm15 is None and st is None:
             raise AttributeError("Before you can k-correct with stretch, you"+\
                   " need to solve for dm15 or st, using either a model or LC fit")

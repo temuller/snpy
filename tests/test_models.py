@@ -160,3 +160,14 @@ def test_H3L_kcorr_clamps_stretch_to_SED_range(snobj, st, expected):
    snobj.kcorr(bands=['B', 'V'], mangle=0)
    assert snobj.ks_s == expected
    assert num.all(num.isfinite(snobj.ks['B']))
+
+
+def test_kcorr_stretch_comes_from_fitted_st(snobj):
+   """A dm15 from a B-band light-curve fit must not override the model's
+   fitted 'st' when choosing the stretch for the k-corrections."""
+   snobj.replot = False
+   snobj.choose_model('max_model', stype='st')
+   snobj.fit(bands=['B', 'V'], dokcorr=False, st=0.9)
+   snobj.data['B'].dm15 = 1.6     # as left behind by e.g. lc.template()
+   snobj.kcorr(bands=['B', 'V'], mangle=0)
+   assert snobj.ks_s == 0.9
