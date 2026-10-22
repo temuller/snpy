@@ -1944,7 +1944,11 @@ class sn(object):
          self.ks_tck = {}
       if not self.quiet:
          print("Doing Initial Fit to get Tmax...")
-      self.model.fit(bands, **args)
+      if 'Tmax' not in args and self.model.parameters.get('Tmax') is None \
+            and self._only_post_max(bands):
+         self._fit_multistart_Tmax(bands, **args)
+      else:
+         self.model.fit(bands, **args)
 
 
       if dokcorr:
@@ -2027,6 +2031,48 @@ class sn(object):
                         "were computed." % (kcorr_iter, stype), stacklevel=2)
       if self.replot:
          self.plot()
+
+   def _only_post_max(self, bands):
+      '''True if, in every band, the brightest point is the first one, i.e.
+      the SN was only observed after maximum.'''
+      for band in bands:
+         d = self.data[band]
+         m = np.asarray(d.mask, dtype=bool)
+         if not np.any(m):
+            continue
+         t,mag = d.MJD[m],d.mag[m]
+         if t[np.argmin(mag)] > t.min():
+            return False
+      return True
+
+   def _fit_multistart_Tmax(self, bands, dts=(0, 5, 10, 15), **args):
+      '''Initial fit of a light curve observed only after maximum. The
+      default Tmax guess (the first epoch) is then too late and the fit can
+      end up in a local minimum, so start from the guess and from dts
+      rest-frame days earlier and keep the solution with the lowest reduced
+      chi-square (the data used can differ between starts).'''
+      T0 = self.model.guess('Tmax')
+      start = dict(self.model.parameters)
+      best = None
+      for dt in dts:
+         # parameters added by a previous start (e.g. Xmax) are guessed again
+         for p in self.model.parameters:
+            self.model.parameters[p] = start.get(p)
+         self.model.parameters['Tmax'] = T0 - dt*(1 + self.z)
+         try:
+            self.model.fit(bands, **args)
+         except RuntimeError:
+            continue
+         if best is None or self.model.rchisquare < best[0]:
+            best = (self.model.rchisquare, dict(self.model.parameters))
+      if best is None:
+         # every start failed: let the default start raise the error
+         self.model.parameters.update(start)
+         self.model.fit(bands, **args)
+         return
+      # refit from the best solution so the model state is consistent
+      self.model.parameters.update(best[1])
+      self.model.fit(bands, **args)
 
    def fitMCMC(self, bands=None, Nwalkers=None, threads=1, Niter=500, 
          burn=200, tracefile=None, verbose=False, plot_triangle=False,

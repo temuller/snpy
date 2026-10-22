@@ -447,3 +447,58 @@ def test_fit_damps_oscillating_kcorr_iterations(snobj):
       snobj.fit(bands=['B', 'V'], kcorr_iter=5)
    assert abs(snobj.Tmax - state['T0']) < 0.05
    assert abs(snobj.Tmax - state['kTmax'][-1]) < 0.05
+
+
+@pytest.fixture
+def snlate(datadir):
+   """SN2006ax with only the data from ~3 days after maximum."""
+   import snpy
+   lines = [l for l in open(os.path.join(datadir, 'SN2006ax.txt'))
+            if not (len(l.split()) == 3 and l[0].isdigit() and float(l.split()[0]) < 830.5)]
+   open('SN2006ax_late.txt', 'w').writelines(lines)
+   s = snpy.get_sn('SN2006ax_late.txt')
+   s.replot = False
+   return s
+
+
+def test_only_post_max_detection(snobj, snlate):
+   assert not snobj._only_post_max(['B', 'V', 'r'])
+   assert snlate._only_post_max(['B', 'V', 'r'])
+
+
+def test_multistart_keeps_lowest_rchisq(snlate):
+   snlate.choose_model('max_model', stype='st')
+   results = []
+   fit = snlate.model.fit
+   def mfit(*a, **k):
+      T = snlate.model.parameters['Tmax']
+      fit(*a, **k)
+      results.append((T, snlate.model.rchisquare))
+   snlate.model.fit = mfit
+   snlate.fit(bands=['B', 'V', 'r'], dokcorr=False)
+   # 4 starts at the guess and 5, 10, 15 rest-frame days earlier + refit
+   T0 = results[0][0]
+   starts = [r[0] for r in results[:4]]
+   assert starts == pytest.approx([T0 - dt*(1 + snlate.z) for dt in (0, 5, 10, 15)])
+   assert len(results) == 5
+   assert snlate.model.rchisquare == pytest.approx(min(r[1] for r in results[:4]), rel=1e-6)
+
+
+@pytest.mark.parametrize("which", ['premax', 'Tmax_fixed', 'Tmax_start'])
+def test_multistart_not_used(snobj, snlate, which):
+   s = snobj if which == 'premax' else snlate
+   s.replot = False
+   s.choose_model('max_model', stype='st')
+   args = {}
+   if which == 'Tmax_fixed':
+      args['Tmax'] = 827.6
+   elif which == 'Tmax_start':
+      s.model.parameters['Tmax'] = 827.6
+   n = [0]
+   fit = s.model.fit
+   def mfit(*a, **k):
+      n[0] += 1
+      fit(*a, **k)
+   s.model.fit = mfit
+   s.fit(bands=['B', 'V', 'r'], dokcorr=False, **args)
+   assert n[0] == 1
