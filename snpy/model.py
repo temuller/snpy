@@ -591,7 +591,10 @@ class EBV_model(model):
          rb = self.parent.restbands[band]
          # make a call to get the weights
          mod,err,mask = self.__call__(band, self.parent.data[band].MJD)
-         weights.append(np.sum(np.where(mask, np.power(err,-2), 0)))
+         # weight by the total (photometric + template) variance
+         var = np.power(err,2) + np.power(self.parent.data[band].e_mag,2)
+         m = mask*self.parent.data[band].mask
+         weights.append(np.sum(np.where(m, 1.0/var, 0)))
          ddm15 = self.dm15 - 1.1
          Robs = kcorr.R_obs(band, self.parent.z, 0, self.EBVhost,
                self.parent.EBVgal, self.Rv_host[calibration], 
@@ -834,7 +837,10 @@ class EBV_model2(model):
          rb = self.parent.restbands[band]
          # make a call to get the weights
          mod,err,mask = self.__call__(band, self.parent.data[band].MJD)
-         weights.append(np.sum(np.where(mask, np.power(err,-2), 0)))
+         # weight by the total (photometric + template) variance
+         var = np.power(err,2) + np.power(self.parent.data[band].e_mag,2)
+         m = mask*self.parent.data[band].mask
+         weights.append(np.sum(np.where(m, 1.0/var, 0)))
          if self.stype in ['st']:
             dst = self.st - 1.0
          else:

@@ -255,3 +255,22 @@ def test_kcorr_mask_uses_restframe_SED_epochs(snobj, k_version):
                      axis=1)
    expected &= snobj.ks_mask['B'][mids].astype(bool)
    assert num.array_equal(mask.astype(bool), expected)
+
+
+@pytest.mark.parametrize("model,stype", [('EBV_model2', 'st'), ('EBV_model', 'dm15')])
+def test_DM_systematic_weights_include_photometric_errors(snobj, model, stype):
+   """Bands with much larger photometric errors must carry ~no weight in
+   the averaged DM systematic."""
+   snobj.replot = False
+   snobj.choose_model(model, stype=stype)
+   snobj.fit(dokcorr=False)
+   m = snobj.model
+   bands = m._fbands
+   m._fbands = ['B']
+   DM_B = snobj.systematics()['DM']
+   m._fbands = bands
+   assert snobj.systematics()['DM'] != pytest.approx(DM_B, rel=1e-3)
+   for b in bands:
+      if b != 'B':
+         snobj.data[b].e_mag = snobj.data[b].e_mag*1e4
+   assert snobj.systematics()['DM'] == pytest.approx(DM_B, rel=1e-3)
