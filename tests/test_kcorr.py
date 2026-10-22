@@ -107,3 +107,16 @@ def test_get_mangled_SED_H3L_uses_fractional_epoch(snobj):
    assert sum(abs(oflux - f_true_on_wave)) < sum(abs(oflux - f_int_on_wave))
 
 
+
+
+def test_get_SED_H3L_extrapolates_out_of_range_epochs():
+   '''With extrapolate=True, H3+L must clamp out-of-range epochs like the
+   other SED versions instead of raising from the NIR template.'''
+   for day, edge in [(75.0, 70.0), (-22.0, -19.0)]:
+      w, f = kcorr.get_SED(day, version='H3+L', sBV=1.0, extrapolate=True)
+      assert w is not None and all(isfinite(f))
+      we, fe = kcorr.get_SED(edge, version='H3+L', sBV=1.0, extrapolate=True)
+      assert allclose(f, fe)
+   # without extrapolation they are simply undefined
+   assert kcorr.get_SED(75.0, version='H3+L', sBV=1.0)[0] is None
+   assert kcorr.get_SED_H3_plus_L(75.0, 1.0)[0] is None

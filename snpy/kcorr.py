@@ -348,8 +348,15 @@ def get_SED_H3_plus_L(epoch,sBV,extrapolate=False):
         * wave (array):  Wavelength in Angstroms
         * flux (array):  arbitrarily normalized flux
     '''
-    # get the NIR template
-    wave_NIR,flux_NIR = get_single_NIR_template(epoch,sBV)
+    # get the NIR template, which is only defined within SED_lims
+    lo,hi = SED_lims['H3+L']
+    if epoch < lo or epoch > hi:
+       if not extrapolate:
+          return (None,None)
+       nir_epoch = min(max(epoch, lo), hi)
+    else:
+       nir_epoch = epoch
+    wave_NIR,flux_NIR = get_single_NIR_template(nir_epoch,sBV)
     # get the H3 templates
     stretched_epoch = epoch/sBV
     # Check limits
