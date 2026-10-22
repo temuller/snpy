@@ -1979,26 +1979,46 @@ class sn(object):
 
          # The last fit can move the shape parameter and Tmax away from the
          # values the k-corrections were computed with. Iterate until they
-         # agree. Only k-corrections computed here are redone.
+         # agree to within the larger of an absolute tolerance and 0.1 sigma.
+         # Only k-corrections computed here are redone.
          def converged():
             shape, Tmax = kstate()
-            ok = abs(Tmax - kused[1]) < 0.05
+            errs = self.model.errors
+            ok = abs(Tmax - kused[1]) < max(0.05, 0.1*errs.get('Tmax', 0))
             if shape is not None and kused[0] is not None:
-               ok = ok and abs(shape - kused[0]) < (0.01 if stype == 'dm15' else 0.005)
+               tol = 0.01 if stype == 'dm15' else 0.005
+               ok = ok and abs(shape - kused[0]) < max(tol, 0.1*errs.get(stype, 0))
             return ok
 
          if mangle or len(kbands) > 0:
+            prev_step = None
             for i in range(kcorr_iter):
                if converged():
                   break
                if not self.quiet:
                   print("k-corrections not converged, iterating...")
+               new = kstate()
+               step = [b - a if None not in (a, b) else 0 for a,b in zip(kused, new)]
+               if prev_step is not None and any(a*b < 0 for a,b in zip(step, prev_step)):
+                  # oscillating: compute the k-corrections halfway between
+                  # the last two solutions (damping)
+                  target = [None if None in (a, b) else (a + b)/2
+                            for a,b in zip(kused, new)]
+               else:
+                  target = list(new)
+               prev_step = step
+               solution = dict(self.model.parameters)
+               if target[0] is not None:
+                  self.model.parameters[stype] = target[0]
+               self.model.parameters['Tmax'] = target[1]
                kused = kstate()
                if mangle:
                   self.kcorr(bands, interp=0, use_model=1, use_stretch=k_stretch,
                         **margs)
                else:
                   self.kcorr(kbands, mangle=0, use_stretch=k_stretch)
+               # restart the fit from the last solution
+               self.model.parameters.update(solution)
                self.model.fit(bands, **args)
             else:
                if kcorr_iter > 0 and not converged():
