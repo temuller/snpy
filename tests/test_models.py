@@ -346,3 +346,50 @@ def test_user_covariance_gives_exact_chi2(snobj):
    r = m._wrap_model([m.parameters[p] for p in m._free], ['B'],
                      {'B': B.get_covar(flux=1)})
    assert num.sum(r**2) == pytest.approx(d @ num.linalg.solve(C, d), rel=1e-9)
+
+
+def _count_kcorr_and_nudge_Tmax(snobj, nudge_calls):
+   """Count k-correction passes; after the given model.fit() calls
+   (1-based) shift Tmax by 0.1 d times the call number, to emulate a fit
+   that keeps moving after the k-corrections were computed."""
+   state = {'fits': 0, 'kcorrs': []}
+   kc = snobj.kcorr
+   def kcorr(*a, **k):
+      state['kcorrs'].append(snobj.Tmax)
+      return kc(*a, **k)
+   snobj.kcorr = kcorr
+   fit = snobj.model.fit
+   def mfit(*a, **k):
+      fit(*a, **k)
+      state['fits'] += 1
+      if state['fits'] in nudge_calls:
+         snobj.model.parameters['Tmax'] += 0.1*state['fits']
+   snobj.model.fit = mfit
+   return state
+
+
+@pytest.mark.parametrize("kcorr_iter,nudges,n_kcorr", [
+   (3, {3, 4}, 5),       # Tmax moves on fits 3, 4 and back on 5: 3 passes
+   (0, {3, 4}, 2),       # old behaviour: k-corrections computed once
+   (3, set(), 2),        # already converged: no extra pass
+])
+def test_fit_iterates_kcorrs_until_converged(snobj, kcorr_iter, nudges, n_kcorr):
+   import warnings
+   snobj.replot = False
+   snobj.choose_model('max_model', stype='st')
+   state = _count_kcorr_and_nudge_Tmax(snobj, nudges)
+   with warnings.catch_warnings():
+      warnings.simplefilter('error')    # no non-convergence warning
+      snobj.fit(bands=['B', 'V'], kcorr_iter=kcorr_iter)
+   assert len(state['kcorrs']) == n_kcorr
+   if kcorr_iter:
+      assert abs(snobj.Tmax - state['kcorrs'][-1]) < 0.05
+
+
+def test_fit_warns_if_kcorrs_do_not_converge(snobj):
+   snobj.replot = False
+   snobj.choose_model('max_model', stype='st')
+   state = _count_kcorr_and_nudge_Tmax(snobj, set(range(3, 100)))
+   with pytest.warns(UserWarning, match="did not converge"):
+      snobj.fit(bands=['B', 'V'], kcorr_iter=2)
+   assert len(state['kcorrs']) == 4

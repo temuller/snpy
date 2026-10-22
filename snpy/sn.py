@@ -1853,7 +1853,7 @@ class sn(object):
       f.close()
    
    def fit(self, bands=None, mangle=1, dokcorr=1, reset_kcorrs=1, 
-         k_stretch=True, margs={}, kcorr=None, **args):
+         k_stretch=True, margs={}, kcorr=None, kcorr_iter=3, **args):
       '''Fit the N light curves with the currently set model (see 
       self.choose_model()).  The parameters that can be varried or held 
       fixed depend on the model being used (try help(self.model)
@@ -1874,6 +1874,11 @@ class sn(object):
                             dm15/st of the object.
          margs (dict): A set of extra arguments to send to 
                        kcorr.mangle_spectrum.mangle_spectrum2()
+         kcorr_iter (int):  Maximum number of extra passes of (k-corrections,
+                       fit) to do until the shape parameter and Tmax agree
+                       with the ones the k-corrections were computed with
+                       (to within 0.005 in st, 0.01 in dm15 and 0.05 days
+                       in Tmax). Set to 0 to compute them only once.
          args (dict): Any extra arguments are sent to the model instance
                       If an argument matches a parameter of the model,
                       that parameter will be held fixed at the specified
@@ -1939,10 +1944,17 @@ class sn(object):
 
 
       if dokcorr:
+         stype = getattr(self.model, 'stype', None)
+         def kstate():
+            # shape parameter and Tmax used for the k-corrections
+            shape = self.model.parameters.get(stype) if stype else None
+            return shape, self.Tmax
+
          kbands = [band for band in bands if band not in self.ks]
          if len(kbands) > 0:
             if not self.quiet:
                print("Setting up initial k-corrections")
+            kused = kstate()
             self.kcorr(kbands, mangle=0, use_stretch=k_stretch)
  
          if not self.quiet:
@@ -1955,10 +1967,40 @@ class sn(object):
          if mangle:
             if not self.quiet:
                print("Doing mangled k-corrections")
+            kused = kstate()
             self.kcorr(bands, interp=0, use_model=1, use_stretch=k_stretch, **margs)
             if not self.quiet:
                print("Doing final fit...")
             self.model.fit(bands, **args)
+
+         # The last fit can move the shape parameter and Tmax away from the
+         # values the k-corrections were computed with. Iterate until they
+         # agree. Only k-corrections computed here are redone.
+         def converged():
+            shape, Tmax = kstate()
+            ok = abs(Tmax - kused[1]) < 0.05
+            if shape is not None and kused[0] is not None:
+               ok = ok and abs(shape - kused[0]) < (0.01 if stype == 'dm15' else 0.005)
+            return ok
+
+         if mangle or len(kbands) > 0:
+            for i in range(kcorr_iter):
+               if converged():
+                  break
+               if not self.quiet:
+                  print("k-corrections not converged, iterating...")
+               kused = kstate()
+               if mangle:
+                  self.kcorr(bands, interp=0, use_model=1, use_stretch=k_stretch,
+                        **margs)
+               else:
+                  self.kcorr(kbands, mangle=0, use_stretch=k_stretch)
+               self.model.fit(bands, **args)
+            else:
+               if kcorr_iter > 0 and not converged():
+                  warnings.warn("k-corrections did not converge after %d "
+                        "iterations: the fit moved %s and/or Tmax since they "
+                        "were computed." % (kcorr_iter, stype), stacklevel=2)
       if self.replot:
          self.plot()
 
