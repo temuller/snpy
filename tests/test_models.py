@@ -274,3 +274,75 @@ def test_DM_systematic_weights_include_photometric_errors(snobj, model, stype):
       if b != 'B':
          snobj.data[b].e_mag = snobj.data[b].e_mag*1e4
    assert snobj.systematics()['DM'] == pytest.approx(DM_B, rel=1e-3)
+
+
+def _inject(model, band, idx, value, masked):
+   """Make model(band) return `value` at data point `idx`."""
+   call = model.__call__
+   def wrapped(b, t, extrap=False):
+      mod, err, mask = call(b, t, extrap)
+      if b == band:
+         mod = mod.copy(); mod[idx] = value
+         mask = mask.copy().astype(bool); mask[idx] = not masked
+      return mod, err, mask
+   model.__call__ = wrapped
+
+
+def test_absurd_model_values_at_masked_points_do_not_poison_fit(snobj):
+   """A masked point whose model overflows (e.g. the K polynomial far
+   outside its range) used to turn every residual into NaN."""
+   snobj.replot = False
+   snobj.data['V'].mask[-1] = False      # the reference fit ignores it too
+   snobj.choose_model('max_model', stype='st')
+   snobj.fit(bands=['B', 'V'], dokcorr=False)
+   ref = dict(snobj.model.parameters)
+   snobj.data['V'].mask[-1] = True
+   snobj.choose_model('max_model', stype='st')
+   _inject(snobj.model, 'V', -1, -900.0, masked=True)
+   snobj.fit(bands=['B', 'V'], dokcorr=False)
+   for p in ref:
+      assert snobj.model.parameters[p] == pytest.approx(ref[p], abs=1e-6)
+   assert num.isfinite(snobj.model.rchisquare)
+
+
+def test_non_finite_model_at_used_points_raises(snobj):
+   snobj.replot = False
+   snobj.choose_model('max_model', stype='st')
+   _inject(snobj.model, 'V', 3, num.nan, masked=False)
+   with pytest.raises(RuntimeError, match="not finite"):
+      snobj.fit(bands=['B', 'V'], dokcorr=False)
+
+
+def test_dof_counts_only_data_used_in_fit(snobj):
+   snobj.replot = False
+   snobj.choose_model('max_model', stype='st')
+   snobj.data['B'].mask[:5] = False
+   snobj.fit(bands=['B', 'V'], dokcorr=False)
+   m = snobj.model
+   used = 0
+   for b in ['B', 'V']:
+      mask = m(b, snobj.data[b].MJD)[2]
+      used += num.sum(num.asarray(mask, dtype=bool) & snobj.data[b].mask)
+   assert used < len(snobj.data['B'].MJD) + len(snobj.data['V'].MJD)
+   assert m.dof == used - len(m._free)
+   assert m.rchisquare == pytest.approx(m.chisquare/m.dof)
+
+
+def test_user_covariance_gives_exact_chi2(snobj):
+   """With a full covariance matrix, chi2 must be d^T C^-1 d."""
+   snobj.replot = False
+   snobj.choose_model('max_model', stype='st')
+   B = snobj.data['B']
+   # photometric errors plus a correlated (zero-point like) term, in mags
+   B.covar = num.diag(B.e_mag**2) + 0.02**2
+   snobj.fit(bands=['B', 'V'], dokcorr=False)
+   m = snobj.model
+   mod, err, mask = m('B', B.MJD)
+   used = num.asarray(mask, dtype=bool) & B.mask
+   f = num.power(10, -0.4*(mod - B.filter.zp))
+   C = B.get_covar(flux=1) + num.diag((f*err/1.0857)**2)
+   C = C[used][:,used]
+   d = (f - B.flux)[used]
+   r = m._wrap_model([m.parameters[p] for p in m._free], ['B'],
+                     {'B': B.get_covar(flux=1)})
+   assert num.sum(r**2) == pytest.approx(d @ num.linalg.solve(C, d), rel=1e-9)

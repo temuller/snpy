@@ -246,8 +246,10 @@ class model:
          raise
       if self.ier > 4:  print(self.mesg)
 
+      # evaluate at the solution: only data actually used count as dof
+      self.info['fvec'] = self._wrap_model(pars, bands, error)
       self.chisquare = np.sum(np.power(self.info['fvec'], 2))
-      self.dof = len(self.info['fvec']) - len(self._free)
+      self.dof = self._nvalid - len(self._free)
       if self.dof < 1:
          print("Warning!  less than 1 degree of freedom!")
          self.rchisquare = self.chisquare
@@ -320,7 +322,6 @@ class model:
 
    def _wrap_model(self, pars, bands, error):
       resids_list = []
-      sum_w = 0
       for i in range(len(pars)):
          self.parameters[self._free[i]] = pars[i]
 
@@ -328,6 +329,7 @@ class model:
          print(">>> _wrap_model called with pars:")
          for i in range(len(self._free)):
             print("   %s:  %f" % (self._free[i],pars[i]))
+      nvalid = 0
       for band in bands:
          if debug: print(">>> calling model member function")
          mod,err,mask = self.__call__(band, self.parent.data[band].MJD)
@@ -336,25 +338,35 @@ class model:
             msg += " The fitter is in a part of parameter space where the model"
             msg += " is not valid or there is no useful data."
             raise RuntimeError(msg)
-         if self.model_in_mags:
-            f = np.power(10, -0.4*(mod - self.parent.data[band].filter.zp))
-            #ef = sqrt(power(err*mod/1.0857,2) + \
-            #          power(self.parent.data[band].e_flux,2))
-            cov_f = np.power(f*err/1.0857,2)
-         else:
-            f = mod
-            cov_f = np.power(err,2)
-         m = mask*self.parent.data[band].mask
+         # Outside their domain, models can return absurd values (e.g.
+         # -800 mag) that overflow when converted to flux. They are masked
+         # out, so silence the warnings and never let them enter the residuals.
+         with np.errstate(over='ignore', invalid='ignore'):
+            if self.model_in_mags:
+               f = np.power(10, -0.4*(mod - self.parent.data[band].filter.zp))
+               cov_f = np.power(f*err/1.0857,2)
+            else:
+               f = mod
+               cov_f = np.power(err,2)
+         m = np.asarray(mask*self.parent.data[band].mask, dtype=bool)
+         dif = np.where(m, f - self.parent.data[band].flux, 0)
          if len(np.shape(error[band])) == 1:
             # simple weight array
-            W = m*1.0/np.sqrt(error[band]+cov_f)
-            sum_w += np.sum(W)
-            resids_list.append((f - self.parent.data[band].flux)*W)
+            var = np.where(m, error[band]+cov_f, 1)
+            r = dif/np.sqrt(var)
          else:
-            W = cholesky(inv(error[band]+np.diag(cov_f)))
-            W = W*m[np.newaxis,:]*m[:,np.newaxis]
-            sum_w += np.sum(np.diagonal(W))
-            resids_list.append(np.dot(W, f - self.parent.data[band].flux))
+            # whiten the unmasked points with C^-1 = L L^T:  chi2 = |L^T d|^2
+            C = (error[band] + np.diag(np.where(m, cov_f, 0)))[m][:,m]
+            L = cholesky(inv(C))
+            r = np.zeros(len(m))
+            r[m] = np.dot(L.T, dif[m])
+         if not np.all(np.isfinite(r[m])):
+            raise RuntimeError("The model for filter %s is not finite at some "
+                  "of the data being fit. Parameters: %s" % (band,
+                  ", ".join("%s=%g" % (p, self.parameters[p]) for p in self._free)))
+         nvalid += np.sum(m)
+         resids_list.append(r)
+      self._nvalid = nvalid
 
       res = np.concatenate(resids_list)
 
