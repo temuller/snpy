@@ -801,9 +801,12 @@ class EBV_model2(model):
       return self.a[calibration][band] + self.b[calibration][band]*delta +\
              self.c[calibration][band]*delta**2
 
-   def systematics(self, calibration=1, include_Ho=False):
+   def systematics(self, calibration=None, include_Ho=False):
       '''Returns the systematic errors in the paramters as a dictionary.  
-      If no estimate is available, return None for that paramter.'''
+      If no estimate is available, return None for that paramter.
+      By default, use the same calibration as the fit.'''
+      if calibration is None:
+         calibration = getattr(self, 'calibration', 0)
       systs = dict.fromkeys(list(self.parameters.keys()))
       # DM contains systematics for Ho, plus average of calibration
       #  uncertainties

@@ -171,3 +171,14 @@ def test_kcorr_stretch_comes_from_fitted_st(snobj):
    snobj.data['B'].dm15 = 1.6     # as left behind by e.g. lc.template()
    snobj.kcorr(bands=['B', 'V'], mangle=0)
    assert snobj.ks_s == 0.9
+
+
+@pytest.mark.parametrize("fit_args,calibration", [({}, 0), ({'calibration': 1}, 1)])
+def test_EBV_model2_systematics_uses_fit_calibration(snobj, fit_args, calibration):
+   snobj.replot = False
+   snobj.choose_model('EBV_model2', stype='st')
+   snobj.fit(dokcorr=False, **fit_args)
+   other = 1 - calibration
+   DM = snobj.systematics()['DM']
+   assert DM == pytest.approx(snobj.systematics(calibration=calibration)['DM'])
+   assert DM != pytest.approx(snobj.systematics(calibration=other)['DM'])
