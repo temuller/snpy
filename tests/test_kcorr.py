@@ -120,3 +120,17 @@ def test_get_SED_H3L_extrapolates_out_of_range_epochs():
    # without extrapolation they are simply undefined
    assert kcorr.get_SED(75.0, version='H3+L', sBV=1.0)[0] is None
    assert kcorr.get_SED_H3_plus_L(75.0, 1.0)[0] is None
+
+
+def test_NIR_PCs_batched_match_single_epoch_GPR():
+   '''The batched/cached GPR prediction of the H3+L NIR PCs must match the
+   one-epoch-at-a-time prediction (with masked PCs zeroed).'''
+   epochs = [-10.3, 0.0, 12.7, 45.2]
+   sBV = 0.85
+   kcorr._PC_cache.clear()
+   batch = kcorr.predict_NIR_PCs(epochs, sBV)
+   for epoch, PCs in zip(epochs, batch):
+      for Wbin in PCs:
+         single,_ = kcorr.GPR_predict_PC(Wbin, epoch, sBV)
+         assert allclose(PCs[Wbin], array(single)*kcorr._PC_mask(Wbin),
+                         rtol=1e-12, atol=0)

@@ -277,6 +277,65 @@ def merge_spec(wave_b,flux_b,wave_r,flux_r,interp_option=0,normalize='blue_side'
             ax.plot(wave_out,flux_out,'k',alpha=0.2)
         return wave_out,flux_out
 
+# lower limit of GPR score when selecting PC (PCs below it are set to 0)
+GPR_score_threshold = 0.2
+_PC_names = ['PC'+str(i+1) for i in range(len(NIR_temp_dict["GPR"]["W1"].keys()))]
+
+def _PC_mask(Wbin):
+   if GPR_score_threshold is None:
+      return np.ones(len(_PC_names))
+   gp_scores = [NIR_temp_dict["GPR"][Wbin][PC]["gp_score"] for PC in _PC_names]
+   return np.array([1. if (score >= GPR_score_threshold) else 0. for score in gp_scores])
+
+# Cache of predicted PCs, keyed by (epoch, sBV)
+_PC_cache = {}
+_PC_cache_max = 5000
+
+def predict_NIR_PCs(epochs, sBV):
+   '''Predict the principal components of every NIR wavelength bin for
+   several epochs at once. All epochs not yet cached are evaluated in a
+   single GPR call per PC (calling the GPRs one epoch at a time is
+   dominated by per-call overhead). PCs that are masked out by
+   GPR_score_threshold are not evaluated.
+
+   Args:
+      epochs (float array): restframe days since B-band maximum
+      sBV (float): color stretch of the SN
+
+   Returns:
+      list of dict: for each epoch, the PC values (array) keyed by Wbin
+   '''
+   keys = [(float(epoch), float(sBV)) for epoch in epochs]
+   todo = sorted(set(key for key in keys if key not in _PC_cache))
+   if todo:
+      X = np.array(todo, dtype=np.float64)
+      preds = {}
+      for Wbin in NIR_temp_dict["GPR"]:
+         mask = _PC_mask(Wbin)
+         vals = np.zeros((len(todo), len(_PC_names)))
+         for i,PC in enumerate(_PC_names):
+            if not mask[i]:
+               continue
+            GPR = NIR_temp_dict["GPR"][Wbin][PC]
+            y_gp = GPR["GPR_onx"].run(None, {"X": X})[0][:,0]
+            ## unnormalize the predicted y using the yrange and min
+            vals[:,i] = y_gp*GPR["yrange"] + GPR["ymin"]
+         preds[Wbin] = vals
+      if len(_PC_cache) + len(todo) > _PC_cache_max:
+         _PC_cache.clear()
+      for k,key in enumerate(todo):
+         _PC_cache[key] = {Wbin:preds[Wbin][k] for Wbin in preds}
+   return [_PC_cache[key] for key in keys]
+
+def _prefetch_NIR_PCs(days, sBV):
+   '''Batch-predict the NIR PCs needed by subsequent H3+L get_SED calls.'''
+   lo,hi = SED_lims['H3+L']
+   if not sBV_lims['H3+L'][0] <= sBV <= sBV_lims['H3+L'][1]:
+      return     # leave it to get_single_NIR_template to complain
+   days = [day for day in days if lo <= day <= hi]
+   if len(days) > 0:
+      predict_NIR_PCs(days, sBV)
+
 def get_single_NIR_template(epoch,sBV):
     '''function of getting one template spectra based on given epoch and sBV
 
@@ -291,8 +350,6 @@ def get_single_NIR_template(epoch,sBV):
             * wavelength: (float array) NIR template wavelength in unit of Angstroms
             * flux: (float array)  NIR template flux in arbitrary unit
     '''
-    ## define some parameters
-    GPR_score_threshold=0.2   ## lower limit of GPR score when selecting PC
     ## check data type and of value is in range
     if isinstance(epoch,list) or isinstance(epoch,np.ndarray) or isinstance(sBV,list) or isinstance(sBV,np.ndarray):
         raise ValueError('Input single value for epoch and sBV please, one at a time :)')
@@ -303,32 +360,19 @@ def get_single_NIR_template(epoch,sBV):
         if (sBV < sBV_lims['H3+L'][0]) or (sBV > sBV_lims['H3+L'][1]):
             raise ValueError('sBV not in supported range, please input sBV \
             between %.1f to %.1f'%(sBV_lims['H3+L'][0],sBV_lims['H3+L'][1]))
-    x1,x2 = epoch,sBV
-    PC_names = ['PC'+str(i+1) for i in range(len(NIR_temp_dict["GPR"]["W1"].keys()))]
+    PC_values = predict_NIR_PCs([epoch], sBV)[0]
     for i in range(len(NIR_temp_dict["PCA_components"].keys())-1):
         ## read the pca transformation and wave grid in the adjacent blocks
         if i==0: # start with the bluest block as the first "merged product"
             Wbin_blue = 'W1'
             wave_merged = NIR_temp_dict["PCA_components"][Wbin_blue]["wavelength"] 
-            # get the predicted PC values from GPR
-            PC_values_blue,_ = GPR_predict_PC(Wbin_blue,x1,x2)
-            # mask the PCs as 0 if the GPR for this PC is under threshold
-            if GPR_score_threshold is not None:
-               gp_scores = [NIR_temp_dict["GPR"][Wbin_blue][PC_key]["gp_score"] for PC_key in PC_names]
-               PC_masks_blue = np.array([1. if (score >= GPR_score_threshold) else 0. for score in gp_scores])
-            else:
-               PC_masks_blue = np.ones(len(gp_scores))
-            flux_merged = PCA_inverse_transform(Wbin_blue, PC_values_blue,PC_masks_blue)
+            flux_merged = PCA_inverse_transform(Wbin_blue, PC_values[Wbin_blue],
+                                                _PC_mask(Wbin_blue))
         # attach the next wavelength block to previous merged product
         Wbin_red = 'W'+str(i+2) 
         wave_red = NIR_temp_dict["PCA_components"][Wbin_red]["wavelength"] 
-        PC_values_red,_ = GPR_predict_PC(Wbin_red,x1,x2)
-        if GPR_score_threshold is not None:
-           gp_scores = [NIR_temp_dict["GPR"][Wbin_red][PC_key]["gp_score"] for PC_key in PC_names]
-           PC_masks_red = np.array([1. if (score >= GPR_score_threshold) else 0. for score in gp_scores])
-        else:
-           PC_masks_red = np.ones(len(NIR_temp_dict["GPR"][Wbin_red].keys()))
-        flux_red = PCA_inverse_transform(Wbin_red, PC_values_red,PC_masks_red)
+        flux_red = PCA_inverse_transform(Wbin_red, PC_values[Wbin_red],
+                                         _PC_mask(Wbin_red))
         ## merge the flux from the W bins
         wave_merged,flux_merged = merge_spec(wave_merged,flux_merged,wave_red,flux_red)
 
@@ -611,6 +655,8 @@ def kcorr(days, filter1, filter2, z, sBV=1.0, ebv_gal=0, ebv_host=0, R_gal=3.1,
 
    kcorrs = []
    mask = []      # Masks the good values (1) and bad (not defined) values (0)
+   if version == 'H3+L':
+      _prefetch_NIR_PCs(days, sBV)
    # Loop through the list of days
    for day in days:
       if version != 'H3+L':
@@ -808,6 +854,9 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
    m_opts = []
    Rts = []
    if debug:  mopts['verbose'] = 1
+
+   if version == 'H3+L':
+      _prefetch_NIR_PCs(days, sBV)
 
    if mepoch:
       # Doing multi epoch simultaneously with one mangling function...
