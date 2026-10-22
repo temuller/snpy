@@ -1995,34 +1995,17 @@ class sn(object):
             return ok
 
          if mangle or len(kbands) > 0:
-            prev_step = None
             for i in range(kcorr_iter):
                if converged():
                   break
                if not self.quiet:
                   print("k-corrections not converged, iterating...")
-               new = kstate()
-               step = [b - a if None not in (a, b) else 0 for a,b in zip(kused, new)]
-               if prev_step is not None and any(a*b < 0 for a,b in zip(step, prev_step)):
-                  # oscillating: compute the k-corrections halfway between
-                  # the last two solutions (damping)
-                  target = [None if None in (a, b) else (a + b)/2
-                            for a,b in zip(kused, new)]
-               else:
-                  target = list(new)
-               prev_step = step
-               solution = dict(self.model.parameters)
-               if target[0] is not None:
-                  self.model.parameters[stype] = target[0]
-               self.model.parameters['Tmax'] = target[1]
                kused = kstate()
                if mangle:
                   self.kcorr(bands, interp=0, use_model=1, use_stretch=k_stretch,
                         **margs)
                else:
                   self.kcorr(kbands, mangle=0, use_stretch=k_stretch)
-               # restart the fit from the last solution
-               self.model.parameters.update(solution)
                self.model.fit(bands, **args)
             else:
                if kcorr_iter > 0 and not converged():

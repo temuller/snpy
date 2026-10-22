@@ -369,7 +369,7 @@ def _count_kcorr_and_nudge_Tmax(snobj, nudge_calls):
 
 
 @pytest.mark.parametrize("kcorr_iter,nudges,n_kcorr", [
-   (3, {3}, 5),          # moves on fit 3, back on 4 (damped), settles: 3 passes
+   (3, {3, 4}, 5),       # Tmax moves on fits 3, 4 and back on 5: 3 passes
    (0, {3, 4}, 2),       # old behaviour: k-corrections computed once
    (3, set(), 2),        # already converged: no extra pass
 ])
@@ -417,36 +417,6 @@ def test_error_scaling_rejects_unknown_mode(snobj):
    snobj.choose_model('max_model', stype='st')
    with pytest.raises(ValueError, match="error_scaling"):
       snobj.fit(bands=['B', 'V'], dokcorr=False, error_scaling='down')
-
-
-def test_fit_damps_oscillating_kcorr_iterations(snobj):
-   """A fit whose Tmax overshoots the k-correction Tmax by -1.5x never
-   converges undamped (0.5, -0.75, 1.1, ...); halving converges."""
-   import warnings
-   snobj.replot = False
-   snobj.choose_model('max_model', stype='st')
-   state = {'fits': 0, 'kTmax': []}
-   kc = snobj.kcorr
-   def kcorr(*a, **k):
-      state['kTmax'].append(snobj.Tmax)
-      return kc(*a, **k)
-   snobj.kcorr = kcorr
-   fit = snobj.model.fit
-   def mfit(*a, **k):
-      fit(*a, **k)
-      state['fits'] += 1
-      if state['fits'] == 2:
-         state['T0'] = snobj.Tmax
-      elif state['fits'] == 3:
-         snobj.model.parameters['Tmax'] = state['T0'] + 0.5
-      elif state['fits'] > 3:
-         snobj.model.parameters['Tmax'] = state['T0'] - 1.5*(state['kTmax'][-1] - state['T0'])
-   snobj.model.fit = mfit
-   with warnings.catch_warnings():
-      warnings.simplefilter('error')
-      snobj.fit(bands=['B', 'V'], kcorr_iter=5)
-   assert abs(snobj.Tmax - state['T0']) < 0.05
-   assert abs(snobj.Tmax - state['kTmax'][-1]) < 0.05
 
 
 @pytest.fixture
