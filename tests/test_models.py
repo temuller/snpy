@@ -121,3 +121,30 @@ def test_MLCS(snobj):
    res = [round(snobj.model.parameters[key],3) == round(MLCS_results[key],3) \
          for key in MLCS_results]
    assert num.all(res)
+
+
+def test_max_model_extra_error_uses_nearest_epoch(snobj):
+   """The late-start extra error must come from the table row closest to
+   the first observed epoch, not the farthest one."""
+   snobj.replot = False
+   snobj.choose_model('max_model', stype='st')
+   snobj.fit(dokcorr=False)
+   m = snobj.model
+   first = num.median([snobj.data[b].MJD.min() for b in snobj.data
+                       if snobj.restbands[b]+'max' in m.parameters])
+   # days:            0     5     10    15    20
+   # Tmax extra err:  0.07  0.16  0.21  0.21  0.46
+   for t0, expected in [(1.0, 0.07), (8.0, 0.21), (19.0, 0.46)]:
+      m.parameters['Tmax'] = first - t0*(1 + snobj.z)
+      assert m._extra_error('Tmax') == pytest.approx(expected)
+
+
+def test_extra_error_added_in_quadrature_to_free_params_only(snobj):
+   snobj.replot = False
+   snobj.choose_model('max_model', stype='st')
+   snobj.model._extra_error = lambda p: 0.1
+   snobj.fit(dokcorr=False, Tmax=827.55)
+   m = snobj.model
+   assert m.errors['Tmax'] == 0
+   for p in m._free:
+      assert m.errors[p] == pytest.approx(num.sqrt(0.1**2 + m.C[p][p]))

@@ -243,14 +243,18 @@ class model:
                "has become insensitive to one or more parameters.")
       C = C*self.rchisquare    # the trick for underestimated errors.
       self.C = {}
-      for p in self.parameters:  self.errors[p] = self._extra_error(p)
+      # Extra (systematic) errors only apply to free parameters and are
+      # added in quadrature to the statistical errors.
+      for p in self.parameters:
+         self.errors[p] = 0 if p in self.fixed else self._extra_error(p)
       for i in range(len(self._free)):
          if C[i,i] < 0:
             print("Error: covariance matrix has negative diagonal element.")
             print("       Error for %s not computed" % (self._free[i]))
             self.errors[self._free[i]] = 0
          else:
-            self.errors[self._free[i]] += np.sqrt(C[i,i])
+            self.errors[self._free[i]] = np.sqrt(
+                  self.errors[self._free[i]]**2 + C[i,i])
          if self._free[i] not in self.C:  self.C[self._free[i]] = {}
          for j in range(len(self._free)):
             self.C[self._free[i]][self._free[j]] = C[i,j]
@@ -1029,7 +1033,7 @@ class max_model(model):
             return 0
          t0 = (self.parent.data[band].MJD - self.Tmax).min()/(1+self.parent.z)
          if t0 < 0:  return 0
-         id = np.argmax(np.absolute(t0-days))
+         id = np.argmin(np.absolute(t0-days))
          return errors[parameter][id]
 
       t0s = []
@@ -1044,7 +1048,7 @@ class max_model(model):
       t0 = np.median(t0s)
       if t0 < 0:
          return 0
-      id = np.argmax(np.absolute(t0 - days))
+      id = np.argmin(np.absolute(t0 - days))
       return errors[parameter][id]
 
    def systematics(self, calibration=1, include_Ho=False):
