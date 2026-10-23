@@ -1,0 +1,2 @@
+# fit and calibration outputs (large; the calibration files are kept)
+results/*.json
