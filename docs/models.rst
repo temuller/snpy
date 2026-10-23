@@ -78,6 +78,16 @@ the ``choose_model`` function to select this model, you can
 specify ``stype='dm15'`` or ``stype='st'`` to select the
 two different light-curve parameters.
 
+Six calibrations are available through the ``calibration`` argument
+to ``fit()``. For ``stype='st'``, 0 (the default), 1 and 2 include the
+:math:`u` band and are derived from SNe with :math:`s_{BV} > 0.5`,
+with :math:`(B-V)_{max} < 0.3`, and from all objects, respectively;
+3, 4 and 5 are the same without the :math:`u` band. The calibrations
+predate the generation-3 light-curve templates (``gen=3``, ``gen=3.1``).
+Recalibrating calibration 0 with ``gen=3.1`` on the same CSP-I sample
+agrees with it within its errors; the scripts and results are in the
+``calibration`` folder of the source repository.
+
 .. _sub-max_model:
 
 max_model

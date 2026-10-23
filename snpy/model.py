@@ -680,14 +680,24 @@ class EBV_model2(model):
    - DM   (distance modulus)
    - EBVhost  (host galaxy extinction)
 
-   The model is constructed by assuming a peak absolute magnitudes in tall
-   the filters, as derived in Burns et al. 2011.  Calibrations were determined
-   using MCMC modeling on all filters at once, determining M_X and b_X for
-   each filter, and one value for R_V.  There are 2 calibrations, based on the 
-   sample used to make the fit and the prior used on the extinction.  Default
-   is 0, where the 2 red SNe are excluded and the blue sub-sample is used to
-   anchor the colors.  Value of 1 is for the sample where the two red
-   SNe were included.  A global extinction parameter EBVhost
+   The model is constructed by assuming a peak absolute magnitudes in all
+   the filters, following Burns et al. 2011.  Calibrations were determined
+   by modeling all filters at once, determining a_X, b_X and c_X in
+   M_X(st) = a_X + b_X*(st-1) + c_X*(st-1)**2 for each filter, and one value
+   for R_V.  There are 6 calibrations (choose with the calibration argument
+   to fit()), which differ in the sample used.  For stype='st'
+   (st_calibration2.dat):
+
+      0 (default):  with u-band, SNe with st > 0.5
+      1:            with u-band, SNe with (B-V)max < 0.3
+      2:            with u-band, all objects
+      3, 4, 5:      as 0, 1, 2 but without the u-band
+
+   dm15_calibration2.dat has the same layout, but its samples are not
+   recorded.  The calibrations predate the generation-3 templates (gen=3,
+   3.1); recalibrating calibration 0 with gen=3.1 on the same CSP-I sample
+   agrees with it within its errors (see calibration/README.md in the
+   source repository).  A global extinction parameter EBVhost
    is applied to each light-curve, as well as Milky way extinction from 
    the SN object's EBVgal.  The value of R_V for the host galaxy is
    not a parameter, but is controled by the choice of calibration
