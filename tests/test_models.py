@@ -535,3 +535,17 @@ def test_kcorr_mangle_MW_R_uses_Rv_gal(snobj):
       R[Rv] = scipy.interpolate.splev(snobj.Tmax, snobj.Robs['B'])
    # R_B ~ R_V + 1: a lower R_V gives a lower R_B
    assert R[2.0] < R[3.1] - 0.5
+
+
+def test_fit_passes_epsfcn_to_leastsq(snobj, monkeypatch):
+   from snpy import model as M
+   seen = []
+   real = M.leastsq
+   def spy(*a, **k):
+      seen.append(k.get('epsfcn'))
+      return real(*a, **k)
+   monkeypatch.setattr(M, 'leastsq', spy)
+   snobj.replot = False
+   snobj.choose_model('max_model', stype='st')
+   snobj.fit(bands=['B', 'V'], dokcorr=False, epsfcn=1e-10)
+   assert seen and all(e == 1e-10 for e in seen)

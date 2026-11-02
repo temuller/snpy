@@ -243,7 +243,8 @@ class model:
 
       try:
          pars,C,self.info,self.mesg,self.ier = \
-               leastsq(self._wrap_model, pars, (bands,error), full_output=1)
+               leastsq(self._wrap_model, pars, (bands,error), full_output=1,
+                       epsfcn=epsfcn)
       except RuntimeError as e:
          if 'All weights for filter' in str(e):
             raise RuntimeError(
