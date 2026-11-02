@@ -156,3 +156,67 @@ def test_NIR_PC_cache_overflow_keeps_requested_epochs(monkeypatch):
    kcorr.predict_NIR_PCs([3.0], 0.9)                     # cache now full
    PCs = kcorr.predict_NIR_PCs([1.0, 4.0, 5.0], 0.9)     # 1.0 cached; overflows
    assert len(PCs) == 3
+
+
+def _fit_for_mangling(snobj):
+   snobj.replot = 0
+   snobj.EBVgal = 0.041
+   snobj.choose_model('EBV_model2', stype='st')
+   bands = ['u', 'B', 'V', 'g', 'r', 'i']
+   snobj.fit(bands)
+   return bands
+
+
+def test_mangled_kcorr_with_model_is_self_consistent(snobj):
+   '''With use_model, recomputing the k-corrections at the same fit state
+   must not change them.
+
+   Regression test: the SED was mangled to the model's observed colors,
+   which include the k-corrections, so each call fed the previous
+   k-corrections back in (0.05-0.2 mag changes at z~0.1, and an endless
+   drift in some NIR bands).
+   '''
+   bands = _fit_for_mangling(snobj)
+   snobj.kcorr(bands, interp=0, use_model=1)
+   K1 = {b: array(snobj.ks[b]) for b in bands}
+   snobj.kcorr(bands, interp=0, use_model=1)
+   for b in bands:
+      m = snobj.ks_mask[b]
+      assert abs(snobj.ks[b] - K1[b])[m].max() < 1e-4
+
+
+def test_mangled_kcorr_matches_restframe_model_colors(snobj):
+   '''The mangled SED's rest-frame colors are the model's colors with the
+   k-corrections removed.'''
+   bands = _fit_for_mangling(snobj)
+   snobj.kcorr(bands, interp=0, use_model=1)
+   assert snobj.ks_mangle_frame == 'rest'
+   # B is dropped from the mangling (too close to g): use V-r
+   b1, b2 = 'V', 'r'
+   i = argmin(abs(snobj.data[b1].t))
+   mjd = snobj.data[b1].MJD[i:i+1]
+   wave, mflux, oflux, f = snobj.get_mangled_SED(b1, i, normalize=False)
+   w0 = wave/(1+snobj.z)
+   rest = []
+   for b in [b1, b2]:
+      m = snobj.model(b, mjd)[0] - snobj.model.kcorr(b, mjd - snobj.Tmax)[0]
+      rest.append(m[0])
+   synth = fset[snobj.restbands[b1]].synth_mag(w0, mflux) - \
+           fset[snobj.restbands[b2]].synth_mag(w0, mflux)
+   assert synth == pytest.approx(rest[0] - rest[1], abs=0.003)
+
+
+def test_get_mangled_SED_observed_frame(snobj):
+   '''For mangling to the data (observed frame), get_mangled_SED applies the
+   mangling function at observed wavelengths, so the SED reproduces the
+   observed colors.'''
+   bands = _fit_for_mangling(snobj)
+   snobj.kcorr(bands, interp=1, use_model=0)
+   assert snobj.ks_mangle_frame == 'obs'
+   i = argmin(abs(snobj.data['V'].t))
+   mjd = snobj.data['V'].MJD[i:i+1]
+   wave, mflux, oflux, f = snobj.get_mangled_SED('V', i, normalize=False)
+   obs = snobj.data['V'].eval(mjd, t_tol=-1)[0][0] - \
+         snobj.data['r'].eval(mjd, t_tol=-1)[0][0]
+   synth = fset['V'].synth_mag(wave, mflux) - fset['r'].synth_mag(wave, mflux)
+   assert synth == pytest.approx(obs, abs=0.003)

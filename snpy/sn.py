@@ -833,7 +833,13 @@ class sn(object):
                         colors. (default: True)
          interp (bool): If True, interpolate missing colors. (default: True)
          use_model (bool):  If True, use a model to interpolate colors, if
-                            one exists (default: False)
+                            one exists (default: False). The SED is then
+                            mangled in the rest frame, to the model's
+                            rest-frame colors (the model with its current
+                            k-corrections removed): the model's observed
+                            colors contain the k-corrections, so mangling
+                            to them feeds the k-corrections back into
+                            themselves.
          min_filter_sep (float): Filters whose effective wavelength are closer
                                  than this are rejected. (Default: 400 A)
          use_stretch (bool): If True, stretch the SED in time to match the
@@ -920,8 +926,23 @@ class sn(object):
                                 tmax=x.max())[0]
          return
 
-      # Now see if we need to eliminate filters
-      eff_waves = np.array([fset[band].eff_wave(Ia_w,Ia_f) for band in mbands])
+      # Now see if we need to eliminate filters. With use_model, the colors
+      # are rest-frame ones, so the separation is between the rest bands.
+      if use_model:
+         cfilt = lambda band: self.restbands[band]
+         # Of the observed filters sharing a rest band (e.g. Swift UV
+         # filters fitted with u), keep the one that best matches it.
+         best = {}
+         for band in mbands:
+            rb = self.restbands[band]
+            d = abs(fset[band].eff_wave(Ia_w,Ia_f)/(1+self.z) - \
+                    fset[rb].eff_wave(Ia_w,Ia_f))
+            if rb not in best or d < best[rb][0]:
+               best[rb] = (d, band)
+         mbands = [band for band in mbands if best[self.restbands[band]][1] == band]
+      else:
+         cfilt = lambda band: band
+      eff_waves = np.array([fset[cfilt(band)].eff_wave(Ia_w,Ia_f) for band in mbands])
       sids = np.argsort(eff_waves)
       eff_waves = eff_waves[sids]
       mbands = [mbands[sids[i]] for i in range(len(sids))]
@@ -929,7 +950,7 @@ class sn(object):
       while np.any(np.less(dwaves, min_filter_sep)):
          bids = np.less(dwaves, min_filter_sep)
          mbands = [mbands[i] for i in range(len(bids)) if not bids[i]] + mbands[-1:]
-         eff_waves = np.array([fset[band].eff_wave(Ia_w,Ia_f) for band in mbands])
+         eff_waves = np.array([fset[cfilt(band)].eff_wave(Ia_w,Ia_f) for band in mbands])
          dwaves = eff_waves[1:] - eff_waves[0:-1]
       if not self.quiet:  print("Mangling based on filters:", mbands)
 
@@ -944,7 +965,8 @@ class sn(object):
          # find where we need to interpolate:
          if use_model:
             ev,eev,ma = self.model(band, res['MJD'])
-            mags.append(ev)
+            Kcur,Kmask = self.model.kcorr(band, res['MJD'] - self.Tmax)
+            mags.append(ev - Kcur)
             masks.append(ma)
          elif interp:
             ev,ma = self.data[band].eval(res['MJD'], t_tol=-1)
@@ -971,9 +993,12 @@ class sn(object):
           use_t = t/(1+self.z)
       kcorrs,mask,Rts,m_opts = kcorr.kcorr_mangle(use_t, bands, 
             mags, masks, restbands, self.z, sBV=s,
-            colorfilts=mbands, version=self.k_version, full_output=1, 
+            version=self.k_version, full_output=1, 
             extrapolate=kextrap, redlaw=self.redlaw, 
-            redlaw_gal=self.redlaw_gal, Rv_gal=self.Rv_gal, **mopts)
+            redlaw_gal=self.redlaw_gal, Rv_gal=self.Rv_gal,
+            restframe_colors=bool(use_model),
+            colorfilts=[cfilt(band) for band in mbands], **mopts)
+      self.ks_mangle_frame = 'rest' if use_model else 'obs'
       mask = np.greater(mask, 0)
       kcorrs = np.array(kcorrs)
       Rts = np.array(Rts)
@@ -1035,7 +1060,9 @@ class sn(object):
       wave,flux = kcorr.get_SED(epoch, version=self.k_version, 
             sBV=self.ks_s,extrapolate=kextrap)
       if self.ks_mopts[band][i]:
-         man_flux = mangle_spectrum.apply_mangle(wave,flux, 
+         mz = 1.0 if getattr(self, 'ks_mangle_frame', 'obs') == 'rest' \
+               else 1.0 + self.z
+         man_flux = mangle_spectrum.apply_mangle(wave*mz,flux, 
                **self.ks_mopts[band][i])[0]
       else:
          man_flux = flux

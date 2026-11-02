@@ -799,7 +799,7 @@ def kcorr_mangle2(waves, spectra, filts, mags, m_mask, restfilts, z,
 def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3', 
       colorfilts=None, full_output=0, mepoch=False, Scorr=False, 
       extrapolate=False, redlaw='ccm', redlaw_gal=None, redlaw_host=None,
-      Rv_gal=3.1, **mopts):
+      Rv_gal=3.1, restframe_colors=False, **mopts):
    '''Compute (cross-)band K-corrections with "mangling" using built-in library
    of spectral SEDs. The SEDs are first multiplied by a smooth spline such that
    the synthetic colors match the observed colors.
@@ -829,6 +829,9 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
                           (see :func:`.get_SED`.
       Rv_gal (float): R_V of the Milky-Way extinction, used for the
                       returned R_obs (full_output).
+      restframe_colors (bool): If True, colorfilts are rest-frame filters
+                      and mags rest-frame magnitudes: the SED is mangled
+                      at z=0 instead of being redshifted first.
       mopts (dict): All additional arguments to function are sent to 
                     :func:`snpy.mangle_spectrum.mangle_spectrum2`.
    
@@ -850,6 +853,8 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
       method = default_method
 
    if colorfilts is None:  colorfilts = filts
+   # wavelength scaling of the SED for mangling
+   mz = 1.0 if restframe_colors else 1.0 + z
    for filter1 in filts + restfilts + colorfilts:
       if filter1 not in filters.fset:
          raise AttributeError("filter %s not defined in filters module" % filter1)
@@ -897,7 +902,7 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
          #cs[-gids] = 99.9   # flag invalid value
          gids = m_mask*sids[:,np.newaxis]
          ms = np.where(gids, mags, 99.9)
-         man_spec_fs,state,pars = mangle_spectrum2(spec_wavs*(1+z),
+         man_spec_fs,state,pars = mangle_spectrum2(spec_wavs*mz,
                spec_fs, fs, ms, **mopts)
 
 
@@ -966,7 +971,7 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
   
             # Now we mangle the spectrum.  Note, we are redshifting the spectrum
             # here, so do NOT set z in mangle_spectrum2.
-            man_spec_f,state,pars = mangle_spectrum2(spec_wav*(1+z),spec_f,
+            man_spec_f,state,pars = mangle_spectrum2(spec_wav*mz,spec_f,
                   fs, ms, **mopts)
  
             if debug:  print("factors = ",factors)
@@ -977,8 +982,8 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
                   print("input color:  %s-%s = %f" % (fs[i],fs[i+1], ms[i]-ms[i+1]), end=' ')
                   f1 = filters.fset[fs[i]]
                   f2 = filters.fset[fs[i+1]]
-                  col = f1.synth_mag(spec_wav*(1+z), man_spec_f[0]) - \
-                        f2.synth_mag(spec_wav*(1+z), man_spec_f[0])
+                  col = f1.synth_mag(spec_wav*mz, man_spec_f[0]) - \
+                        f2.synth_mag(spec_wav*mz, man_spec_f[0])
                   print("  output color:  %f" % (col))
   
          if full_output:
