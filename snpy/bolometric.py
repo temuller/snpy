@@ -208,7 +208,7 @@ def bolometric_SED(sn, bands=None, lam1=None, lam2=None, refband=None,
    ts = ts[gids]
 
    # restrict on wanted interval if necessary
-   gids = np.ones(len(ts), dtype=np.bool)
+   gids = np.ones(len(ts), dtype=bool)
    if tmin is not None and tmin > ts.min():
       gids = gids & np.greater(ts, tmin)
    if tmax is not None and tmax < ts.max():
@@ -470,7 +470,7 @@ def bolometric_direct(sn, bands=None, tmin=None, tmax=None,
    ts = ts[gids]
 
    # Restrict on wanted interval if necessary
-   gids = np.ones(len(ts), dtype=np.bool)
+   gids = np.ones(len(ts), dtype=bool)
    if tmin is not None and tmin > ts.min():
       gids = gids & np.greater(ts, tmin)
    if tmax is not None and tmax < ts.max():

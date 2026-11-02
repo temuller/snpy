@@ -705,7 +705,7 @@ class sn(object):
             self.Ss[band],self.Ss_mask[band] = list(map(np.array,kcorr.kcorr(days, 
                self.restbands[band], band, self.z, st, self.EBVgal, 0.0,
                version=SED, Scorr=True)))
-            self.Ss_mask[band] = self.Ss_mask[band].astype(np.bool)
+            self.Ss_mask[band] = self.Ss_mask[band].astype(bool)
          else:
             self.Ss[band] = []
             self.Ss_mask[band] = []
@@ -911,7 +911,7 @@ class sn(object):
                self.restbands[band], band, self.z, self.ks_s, self.EBVgal, 0.0,
                version=self.k_version, extrapolate=kextrap,
                redlaw=self.redlaw, redlaw_gal=self.redlaw_gal)))
-            self.ks_mask[band] = self.ks_mask[band].astype(np.bool)
+            self.ks_mask[band] = self.ks_mask[band].astype(bool)
             #self.ks_tck[band] = scipy.interpolate.splrep(x, self.ks[band], k=1, s=0)
             if len(x) > 1:
                self.ks_tck[band] = fit_spline.make_spline(x, self.ks[band], x*0+1,
@@ -989,7 +989,7 @@ class sn(object):
                           tmin=res['MJD'].min(), tmax = res['MJD'].max())[0]
          self.ks[b] = scipy.interpolate.splev(self.data[b].MJD, self.ks_tck[b])
          self.ks_mask[b] = np.array([mask[np.argmin(np.absolute(res['MJD'] - self.data[b].MJD[j])),i] \
-               for j in range(len(self.data[b].MJD))]).astype(np.bool)
+               for j in range(len(self.data[b].MJD))]).astype(bool)
          self.ks_mopts[b] = [m_opts[np.argmin(np.absolute(res['MJD'] - self.data[b].MJD[j]))] \
                for j in range(len(self.data[b].MJD))]
 

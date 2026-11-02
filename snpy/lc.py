@@ -51,7 +51,7 @@ class lc:
       self.debug=0             # Of course, we'll never need this!
 
       # a way to mask out bad data from fitting
-      self.mask = np.ones(self.mag.shape, dtype=np.bool) 
+      self.mask = np.ones(self.mag.shape, dtype=bool) 
       self.filter = fset[self.band] # instance of filter object for this band
 
       # A way to keep track of sources of photometry

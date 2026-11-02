@@ -137,7 +137,7 @@ class model:
          mask2 = self.parent.ks_mask[band][mids]*valid
       else:
          K = 0*t
-         mask2 = np.ones(t.shape, dtype=np.bool)
+         mask2 = np.ones(t.shape, dtype=bool)
       return K,mask2
 
    def MWR(self, band, t):
