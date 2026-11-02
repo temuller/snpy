@@ -102,6 +102,9 @@ class dict_def:
          if val not in vals: vals.append(val)
       return vals
 
+# UV filters, not fit by default unless the model has a UV template for them
+UV_FILTERS = ['UVW2', 'UVM2', 'UVW1', 'NUV', 'FUV']
+
 class sn(object):
    '''This class is the heart of SNooPy.  Create a supernova object by 
    calling the constructor with the name of the superova as the argument.  
@@ -1909,7 +1912,10 @@ class sn(object):
       Args:
          bands (list or None):  List of observed filters to fit. If None
                                 (default), fit all filters with valid
-                                rest-bands.
+                                rest-bands, except UV filters (Swift UVW2,
+                                UVM2, UVW1, GALEX NUV, FUV) for which the
+                                model has no UV template (they would be
+                                fit with an optical one, e.g. u).
          mangle (bool):  If True, mangle the Ia SED to fit observed colors
                          before computing k-corrections.
          dokcorr (bool):  If True, compute k-corrections as part of the fit.
@@ -1967,6 +1973,14 @@ class sn(object):
          # By default, we fit the bands whose restbands are provided by the model
          bands = [b for b in list(self.data.keys()) \
                if self.restbands[b] in self.model.rbs]
+         uv = [b for b in bands if b in UV_FILTERS and \
+               self.restbands[b] not in UV_FILTERS]
+         if uv:
+            warnings.warn("Not fitting %s by default: this model has no UV "
+                  "template for them (rest band(s) %s). Pass bands explicitly "
+                  "to fit them." % (", ".join(uv),
+                  ", ".join(self.restbands[b] for b in uv)), stacklevel=2)
+            bands = [b for b in bands if b not in uv]
 
       # Setup initial Robs (in case it is used by the model)
       for band in bands:

@@ -616,3 +616,29 @@ def test_runaway_band_is_penalised(snobj):
       pars[i] = umax
       chi2s.append(chi2())
    assert sane < chi2s[0] < chi2s[1] < chi2s[2]
+
+
+@pytest.mark.parametrize("model,fitted", [('EBV_model2', False),
+                                          ('max_model', True)])
+def test_default_bands_skip_UV_without_UV_template(snobj, model, fitted):
+   '''Swift UV data are not fit by default with a model that has no UV
+   template (EBV_model2 would fit them with u); max_model has UV templates.'''
+   import warnings
+   from snpy.lc import lc
+   snobj.replot = False
+   d = snobj.data['B']
+   snobj.data['UVW2'] = lc(snobj, 'UVW2', d.MJD, d.mag + 2, d.e_mag)
+   snobj.get_restbands()
+   snobj.choose_model(model, stype='st')
+   if fitted:
+      assert snobj.restbands['UVW2'] == 'UVW2'
+      with warnings.catch_warnings():
+         warnings.filterwarnings('error', message='Not fitting')
+         snobj.fit(dokcorr=False)
+      assert 'UVW2' in snobj.model._fbands
+   else:
+      assert snobj.restbands['UVW2'] == 'u'
+      with pytest.warns(UserWarning, match='Not fitting UVW2 by default'):
+         snobj.fit(dokcorr=False)
+      assert 'UVW2' not in snobj.model._fbands
+      assert 'B' in snobj.model._fbands
