@@ -933,6 +933,7 @@ class EBV_model2(model):
          dRobs = Robs*self.eRv_host[calibration]/self.Rv_host[calibration]
          syst_DM.append(np.power(dst*self.eb[calibration][rb],2)+\
                         np.power(self.EBVhost*dRobs, 2)+\
+                        np.power(dst**2*self.ec[calibration][rb], 2)+\
                         np.power(self.ea[calibration][rb], 2)+\
                         #power(2.17*velerr/(3e5*self.parent.z),2) +\
                         np.power(self.sigSN[calibration][rb],2))

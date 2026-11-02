@@ -642,3 +642,19 @@ def test_default_bands_skip_UV_without_UV_template(snobj, model, fitted):
          snobj.fit(dokcorr=False)
       assert 'UVW2' not in snobj.model._fbands
       assert 'B' in snobj.model._fbands
+
+
+def test_EBV_model2_systematics_include_c_term(snobj):
+   '''The DM systematic includes the error of the quadratic stretch term,
+   ec*(st-1)**2, which vanishes at st = 1.'''
+   snobj.replot = False
+   snobj.choose_model('EBV_model2', stype='st')
+   snobj.fit(dokcorr=False, st=0.7)
+   m = snobj.model
+   full = snobj.systematics()['DM']
+   ec = m.ec
+   m.ec = {k: dict.fromkeys(v, 0.) for k, v in ec.items()}
+   no_c = snobj.systematics()['DM']
+   m.ec = ec
+   # mean over bands of ec*(st-1)**2 ~ 0.4*0.09 = 0.036 mag in quadrature
+   assert full**2 - no_c**2 == pytest.approx(0.036**2, rel=0.5)
