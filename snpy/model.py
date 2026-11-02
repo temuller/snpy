@@ -1441,23 +1441,16 @@ class Rv_model(model):
          x0 = brent(lambda x: self.template.eval(rband, x, gen=self.gen)[0], brack=(0.,5.))
          Tmaxs.append(x0*(1+self.parent.z) + self.Tmax)
          mmax = self.Bmax + self.MMax(rband, self.calibration) - \
-               self.MMax('B', self.calibation)
+               self.MMax('B', self.calibration)
          if not restframe and band in self.parent.ks_tck:
             # add the K-correction
             mmax = mmax + scipy.interpolate.splev(Tmaxs[-1], self.parent.ks_tck[band])
          if not deredden:
-            if band in self.parent.Robs:
-               if type(self.parent.Robs[band]) is type(()):
-                  Rmw = scipy.interpolate.splev(Tmaxs[-1], 
-                        self.parent.Robs[band])
-               else:
-                  Rmw = self.parent.Robs[band]
-            Rhost = kcorr.R_obs(rband, 0, x0, self.EBVhost, 
-                     self.parent.EBVgal, self.Rv_host, self.parent.Rv_gal, 'H3',
-                     redlaw=self.parent.redlaw,
-                     redlaw_gal=self.parent.redlaw_gal,
-                     extrapolate=self.parent.k_extrapolate)
-            mmax = mmax + Rhost*self.EBVhost + Rmw*self.parent.EBVgal
+            # same host and Milky-Way extinction as the model (__call__)
+            Rmw = self.MWR(band, np.array([Tmaxs[-1] - self.Tmax]))
+            Ahost = kcorr.A_obs(rband, 0,  0, self.EBVhost, 0, self.Rv,
+                  self.parent.Rv_gal, 'H3')
+            mmax = mmax + Ahost + float(np.squeeze(Rmw))*self.parent.EBVgal
          Mmaxs.append(mmax)
          eMmaxs.append(self.errors['Bmax'])
          rbands.append(rband)

@@ -472,3 +472,18 @@ def test_multistart_not_used(snobj, snlate, which):
    s.model.fit = mfit
    s.fit(bands=['B', 'V', 'r'], dokcorr=False, **args)
    assert n[0] == 1
+
+
+def test_Rv_model_get_max_matches_model_at_peak(snobj):
+   """Rv_model.get_max used to raise AttributeError (self.calibation,
+   self.Rv_host); its peak must agree with the model light curve."""
+   snobj.replot = False
+   snobj.choose_model('Rv_model', stype='dm15')
+   snobj.fit(bands=['B', 'V', 'r'], dokcorr=False)
+   m = snobj.model
+   Tmaxs, Mmaxs, eMmaxs, rbands = m.get_max(['B', 'V', 'r'])
+   for band, T, M in zip(['B', 'V', 'r'], Tmaxs, Mmaxs):
+      t = T + num.linspace(-1, 1, 201)
+      # get_max (in every model) takes the template peak to be 0 mag;
+      # the templates actually peak within ~0.01 mag of it
+      assert M == pytest.approx(num.min(m(band, t)[0]), abs=0.015)
