@@ -155,6 +155,10 @@ class filter(spectrum):
    def read(self):
       '''Reads in the response for file and updates several member functions.'''
       spectrum.read(self)
+      # forget anything computed from a previous response
+      self.tck = None
+      self.mint = None
+      self._resp_cache = {}
 
    def compute_zpt(self, spectrum, mag, zeropad=True):
       '''Compute the photometric zero point.  If spectrum is a list of spectra, then
@@ -246,7 +250,39 @@ class filter(spectrum):
       if (self.wavemin < swave[0] or self.wavemax > swave[-1]) and not zeropad:
             return(-1.0)
 
-      # Now figure out the limits of the integration:
+      # The result is linear in the flux: for a given wavelength grid, it is
+      # weights . flux, so cache the weights (the same grids come back over
+      # and over, e.g. an SED sequence at the SN's redshift).
+      key = (swave.shape, float(swave[0]), float(swave[-1]),
+             float(np.sum(swave)), photons, subsample, interp_method,
+             integ_method)
+      cache = self.__dict__.setdefault('_resp_cache', {})
+      if key not in cache:
+         if len(cache) > 500:
+            cache.clear()
+         cache[key] = self._response_weights(swave, photons)
+         if cache[key] is None:
+            del cache[key]
+      if key in cache:
+         sl,weights = cache[key]
+         return np.dot(weights, spec[sl])
+      return self._response_direct(swave, spec, photons)
+
+   def _response_weights(self, swave, photons):
+      '''(slice, weights) such that response = weights . flux[slice] on the
+      wavelength grid swave, or None for integ_method='simple'.'''
+      if integ_method not in ['simpsons', 'trapz']:
+         return None
+      sl,_ = self._response_trim(swave)
+      m = len(range(*sl.indices(len(swave))))
+      # each row of the identity is one flux point: the integrals are the
+      # weights of the (linear) integration
+      weights = self._response_direct(swave, None, photons, basis=np.eye(m))
+      weights.setflags(write=False)
+      return (sl, weights)
+
+   def _response_trim(self, swave):
+      '''Slice of the spectrum used for the integration.'''
       x_min = np.minimum.reduce(self.wave)
       x_max = np.maximum.reduce(self.wave)
       try:
@@ -266,9 +302,14 @@ class filter(spectrum):
          i_max += 5
       else:
          i_max = len(swave) - 1
+      return slice(i_min, i_max+1, subsample),(x_min,x_max)
 
-      trim_spec = spec[i_min:i_max+1:subsample]
-      trim_wave = swave[i_min:i_max+1:subsample]
+   def _response_direct(self, swave, spec, photons, basis=None):
+      '''The integral of the response over spec (or, with basis, over each
+      row of basis, which replaces the trimmed spectrum).'''
+      sl,(x_min,x_max) = self._response_trim(swave)
+      trim_spec = basis if basis is not None else spec[sl]
+      trim_wave = swave[sl]
       # Now, we need to resample the response wavelengths to the spectrum:
       if interp_method == "spline":
          if self.tck is None:
@@ -289,9 +330,9 @@ class filter(spectrum):
          integrand = integrand*trim_wave/ch
 
       if integ_method=='simpsons':
-         result = scipy.integrate.simpson(integrand, x=trim_wave)
+         result = scipy.integrate.simpson(integrand, x=trim_wave, axis=-1)
       elif integ_method=='trapz':
-         result = scipy.integrate.trapezoid(integrand, x=trim_wave)
+         result = scipy.integrate.trapezoid(integrand, x=trim_wave, axis=-1)
       else:
          result = (trim_wave[-1] - trim_wave[0])/(len(trim_wave)-1)*\
                sum(integrand)

@@ -226,56 +226,101 @@ def merge_spec(wave_b,flux_b,wave_r,flux_r,interp_option=0,normalize='blue_side'
         * flux_merged: (float array) merged flux
     '''
     ## converted from Eric's IDL code EYH_MERGE_SPEC
-    weight_lo=0.
-    w1 = np.where(wave_b>=min(wave_r))[0]
-    w2 = np.where(wave_r<=max(wave_b))[0]
-    if (len(w1)<2) or (len(w2)<2):
+    plan = _merge_plan(wave_b, wave_r, interp_option)
+    if plan is None:
         print('WARNING! Not enough overlap')
         return
+    w1,w2 = plan['w1'],plan['w2']
+    fb,fr = flux_b[w1],flux_r[w2]
+    ### decide how to normalize
+    if normalize == 'blue_side':
+        ### match the overlappen region flux based on the blue side
+        norm_b = 1
+        norm_r = np.dot(plan['simps_b'], fb)/np.dot(plan['simps_r'], fr)
+    elif normalize == 'red_side':
+        norm_b = np.dot(plan['simps_r'], fr)/np.dot(plan['simps_b'], fb)
+        norm_r = 1
     else:
-        ### decide what wavelegnth to use in the overlap region
-        if interp_option ==0: ## combine the overlap wavelengths
-            wave_overlap = np.concatenate([wave_b[w1], wave_r[w2]],axis=0)
-            wave_overlap = np.sort(wave_overlap)
-            wave_overlap = np.unique(wave_overlap)
-        elif interp_option ==1:
-            wave_overlap = wave_b[w1]
-        elif interp_option ==2:
-            wave_overlap = wave_r[w2]
-        ### decide how to normalize
-        if normalize == 'blue_side':
-            ### match the overlappen region flux based on the blue side
-            norm_b = 1
-            norm_r = simps(flux_b[w1],x=wave_b[w1])/\
-                     simps(flux_r[w2],x=wave_r[w2])
-        elif normalize == 'red_side':
-            norm_b = simps(flux_r[w2],x=wave_r[w2])/\
-                  simps(flux_b[w1],x=wave_b[w1])
-            norm_r = 1
-        else:
-            norm_b,norm_r = 1,1 ## let the spectra merge by weight, smooothly merging together
+        norm_b,norm_r = 1,1 ## let the spectra merge by weight, smooothly merging together
 
-        ### inteplate the flux in overlaped region
-        x = [min(wave_overlap), max(wave_overlap)]
-        f1 = scipy.interpolate.interp1d(x, [1.,weight_lo])
-        f2 = scipy.interpolate.interp1d(x, [weight_lo,1.])
-        weight1 = f1(wave_overlap)
-        weight2 = f2(wave_overlap)
-        f1_f = scipy.interpolate.interp1d(wave_b[w1],norm_b*flux_b[w1],fill_value="extrapolate")
-        f2_f = scipy.interpolate.interp1d(wave_r[w2],norm_r*flux_r[w2],fill_value="extrapolate")
-        flux_ol = 1./(weight1+weight2)*(f1_f(wave_overlap)*weight1 + f2_f(wave_overlap)*weight2)
+    ### inteplate the flux in overlaped region
+    weight1,weight2 = plan['weight1'],plan['weight2']
+    flux_ol = 1./(weight1+weight2)*(_lin_interp(plan['interp_b'], norm_b*fb)*weight1 +
+                                    _lin_interp(plan['interp_r'], norm_r*fr)*weight2)
 
-        ### now combine the flux
-        w1_rest = np.where(wave_b<min(wave_r))[0]
-        w2_rest = np.where(wave_r>max(wave_b))[0]
-        wave_out = np.concatenate([wave_b[w1_rest],wave_overlap,wave_r[w2_rest]],axis=0)
-        flux_out = np.concatenate([norm_b*flux_b[w1_rest],flux_ol,norm_r*flux_r[w2_rest]],axis=0)
+    ### now combine the flux
+    flux_out = np.concatenate([norm_b*flux_b[plan['w1_rest']],flux_ol,
+                               norm_r*flux_r[plan['w2_rest']]],axis=0)
+    wave_out = plan['wave_out'].copy()
 
-        if plot_ax is not None:
-            ax.plot(wave_b,norm_b*flux_b,'b',alpha=0.4)
-            ax.plot(wave_r,norm_r*flux_r,'r',alpha=0.4)
-            ax.plot(wave_out,flux_out,'k',alpha=0.2)
-        return wave_out,flux_out
+    if plot_ax is not None:
+        plot_ax.plot(wave_b,norm_b*flux_b,'b',alpha=0.4)
+        plot_ax.plot(wave_r,norm_r*flux_r,'r',alpha=0.4)
+        plot_ax.plot(wave_out,flux_out,'k',alpha=0.2)
+    return wave_out,flux_out
+
+# merge_spec is called with the same wavelength grids over and over (the
+# PCA bins of the NIR template, the H3 grid): everything that only depends on
+# the grids is computed once.
+_merge_plans = {}
+
+def _grid_key(wave):
+   wave = np.asarray(wave)
+   return (wave.shape, float(wave[0]), float(wave[-1]), float(np.sum(wave)))
+
+def _interp_coeffs(x, xnew):
+   '''Indices and terms of linear interpolation (with linear extrapolation)
+   of data on x at xnew, as scipy.interpolate.interp1d does it.'''
+   idx = np.clip(np.searchsorted(x, xnew, side='left'), 1, len(x)-1)
+   lo,hi = idx-1,idx
+   return (lo, hi, x[hi]-x[lo], xnew-x[lo])
+
+def _lin_interp(coeffs, y):
+   lo,hi,dx,dxnew = coeffs
+   return (y[hi]-y[lo])/dx*dxnew + y[lo]
+
+def _merge_plan(wave_b, wave_r, interp_option=0):
+   key = (_grid_key(wave_b), _grid_key(wave_r), interp_option)
+   if key in _merge_plans:
+      return _merge_plans[key]
+   wave_b = np.asarray(wave_b, dtype=np.float64)
+   wave_r = np.asarray(wave_r, dtype=np.float64)
+   if np.any(np.diff(wave_b) <= 0) or np.any(np.diff(wave_r) <= 0):
+      raise ValueError("merge_spec needs strictly increasing wavelengths")
+   weight_lo = 0.
+   w1 = np.where(wave_b>=wave_r.min())[0]
+   w2 = np.where(wave_r<=wave_b.max())[0]
+   if (len(w1)<2) or (len(w2)<2):
+      _merge_plans[key] = None
+      return None
+   ### decide what wavelegnth to use in the overlap region
+   if interp_option ==0: ## combine the overlap wavelengths
+      wave_overlap = np.unique(np.concatenate([wave_b[w1], wave_r[w2]],axis=0))
+   elif interp_option ==1:
+      wave_overlap = wave_b[w1]
+   elif interp_option ==2:
+      wave_overlap = wave_r[w2]
+   # linear weights across the overlap, as interp1d([x0,x1],[1,weight_lo])
+   x0,x1 = wave_overlap.min(),wave_overlap.max()
+   weight1 = (weight_lo-1.)/(x1-x0)*(wave_overlap-x0) + 1.
+   weight2 = (1.-weight_lo)/(x1-x0)*(wave_overlap-x0) + weight_lo
+   # Simpson's rule is linear in the flux: integral = weights . flux
+   simps_b = simps(np.eye(len(w1)), x=wave_b[w1], axis=1)
+   simps_r = simps(np.eye(len(w2)), x=wave_r[w2], axis=1)
+   w1_rest = np.where(wave_b<wave_r.min())[0]
+   w2_rest = np.where(wave_r>wave_b.max())[0]
+   plan = dict(w1=w1, w2=w2, weight1=weight1, weight2=weight2,
+               simps_b=simps_b, simps_r=simps_r,
+               interp_b=_interp_coeffs(wave_b[w1], wave_overlap),
+               interp_r=_interp_coeffs(wave_r[w2], wave_overlap),
+               w1_rest=w1_rest, w2_rest=w2_rest,
+               wave_out=np.concatenate([wave_b[w1_rest],wave_overlap,
+                                        wave_r[w2_rest]],axis=0))
+   for v in plan.values():
+      if isinstance(v, np.ndarray):
+         v.setflags(write=False)
+   _merge_plans[key] = plan
+   return plan
 
 # lower limit of GPR score when selecting PC (PCs below it are set to 0)
 GPR_score_threshold = 0.2
