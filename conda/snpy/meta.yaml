@@ -26,6 +26,8 @@ requirements:
       - pandas
       - h5py
       - onnxruntime
+      - extinction
+      - sfdmap2
 
 test:
    requires:

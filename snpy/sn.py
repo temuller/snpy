@@ -24,7 +24,7 @@ import numpy as np       # Vectors
 from . import ubertemp             # a template class that contains these two
 from . import kcorr                # Code for generating k-corrections
 from . import bolometric
-from .utils import IRSA_dust_getval as dust_getval
+from .utils import sfd_dust
 
 from .utils import fit_poly  # polynomial fitter
 import scipy                # Scientific python routines
@@ -855,6 +855,7 @@ class sn(object):
          * self.mopts:  If mangling was used, contains the parameters of the 
                         mangling function.
       '''
+      self._check_EBVgal()
       if use_stretch and self.k_version != '91bg':
          dm15 = getattr(self, 'dm15', None)
          st = getattr(self, 'st', None)
@@ -1259,26 +1260,40 @@ class sn(object):
 
       return(MJD, ms[0]-ms[1], np.sqrt(ems[0]**2 + ems[1]**2), flags)
 
-   def getEBVgal(self, calibration='SF11'):
-      '''Gets the value of E(B-V) due to galactic extinction.  The ra and decl
-      member variables must be set beforehand.
-      
+   def getEBVgal(self, calibration='SF11', mapdir=None):
+      '''Gets the value of E(B-V) due to galactic extinction from local
+      copies of the SFD dust maps (see :mod:`snpy.utils.sfd_dust`).  The ra
+      and decl member variables must be set beforehand.
+
       Args:
          calibration (str):  Which MW extionction calibraiton ('SF11' or 
                              'SFD98')
+         mapdir (str):  directory of the SFD map files. Default: the
+                        SFD_DIR environment variable.
 
       Returns:
          None
 
       Effects:
-         self.EBVgal is set to Milky-Way color excess.
+         self.EBVgal is set to Milky-Way color excess. If the maps cannot be
+         found, a warning is issued and self.EBVgal is set to None; it must
+         then be set by hand before fitting.
       '''
       if self.ra is not None and self.decl is not None:
-         self.EBVgal,mask = dust_getval.get_dust_RADEC(self.ra, self.decl,
-               calibration=calibration)
-         self.EBVgal = self.EBVgal[0]
+         try:
+            self.EBVgal = float(sfd_dust.get_ebv(self.ra, self.decl,
+               calibration=calibration, mapdir=mapdir))
+         except sfd_dust.SFDMapError as e:
+            warnings.warn("E(B-V)_gal not computed: %s" % e, stacklevel=2)
+            self.EBVgal = None
       else:
          print("Error:  need ra and dec to be defined, E(B-V)_gal not computed")
+
+   def _check_EBVgal(self):
+      if self.EBVgal is None:
+         raise ValueError("%s: the Milky-Way E(B-V) (EBVgal) is not set. Set "
+               "SFD_DIR to the SFD dust-map directory and call getEBVgal(), "
+               "or set EBVgal by hand." % self.name)
 
    def get_zcmb(self):
       '''Gets the CMB redshift from NED calculator and stores it locally.'''
@@ -1918,6 +1933,7 @@ class sn(object):
                        " instead", stacklevel=2)
          dokcorr=kcorr
 
+      self._check_EBVgal()
       if bands is None:
          # By default, we fit the bands whose restbands are provided by the model
          bands = [b for b in list(self.data.keys()) \

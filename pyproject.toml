@@ -36,10 +36,12 @@ dependencies = [
     "onnxruntime",
     "emcee",
     "pymysql",
-    "scikit-learn"]
+    "scikit-learn",
+    "extinction",
+    "sfdmap2"]
 
 [project.optional-dependencies]
-test = ["pytest", "extinction"]
+test = ["pytest"]
 interactive = ["ipython"]
 
 

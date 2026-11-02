@@ -20,6 +20,14 @@ snpy.utils.IRSA_dust_getval module
     :undoc-members:
     :show-inheritance:
 
+snpy.utils.sfd_dust module
+--------------------------
+
+.. automodule:: snpy.utils.sfd_dust
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 snpy.utils.deredden module
 --------------------------
 

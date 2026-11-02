@@ -50,17 +50,16 @@ def _in_tmp_workdir(tmp_path, monkeypatch):
 def _offline_ebvgal(monkeypatch):
     """Make Milky-Way E(B-V) look-ups deterministic and offline-safe.
 
-    ``sn.getEBVgal`` queries the IRSA dust service over the network, which
-    makes the suite fail when offline and flaky otherwise.  Pin the value
-    for the test field (SN2006ax) to the value the service returns.
+    ``sn.getEBVgal`` reads local SFD dust maps, which the test machine may
+    not have.  Pin the value for the test field (SN2006ax) to the SF11 value
+    (tests/test_sfd_dust.py checks the maps themselves when available).
     """
-    from snpy.utils import IRSA_dust_getval
+    from snpy.utils import sfd_dust
 
-    def _fixed_get_dust_RADEC(ra, dec, calibration="SF11"):
-        return [0.041], [1]
+    def _fixed_get_ebv(ra, dec, calibration="SF11", mapdir=None):
+        return 0.041
 
-    monkeypatch.setattr(IRSA_dust_getval, "get_dust_RADEC",
-                        _fixed_get_dust_RADEC)
+    monkeypatch.setattr(sfd_dust, "get_ebv", _fixed_get_ebv)
     yield
 
 
