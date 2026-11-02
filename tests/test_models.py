@@ -1,6 +1,7 @@
 import pytest
 from snpy import get_sn
 import numpy as num
+import scipy.interpolate
 import os
 
 # Test if SALT2 is available
@@ -506,3 +507,31 @@ def test_fit_reports_leastsq_convergence(snobj, monkeypatch, ier, converged):
       snobj.fit(bands=['B', 'V'], dokcorr=False)
    assert snobj.model.converged == converged
    assert any('did not converge' in str(w.message) for w in W) == (not converged)
+
+
+def test_max_model_get_max_uses_Rv_gal(snobj):
+   """Without a stored MW R, get_max passed Rv_gal into the host R_V slot
+   of R_obs, so the MW extinction silently used R_V = 3.1."""
+   snobj.replot = False
+   snobj.choose_model('max_model', stype='st')
+   snobj.fit(bands=['B', 'V'], dokcorr=False)
+   snobj.Rv_gal = 2.0
+   del snobj.Robs['B']
+   snobj.model.MWRobs = {}
+   red = snobj.model.get_max(['B'])[1][0]
+   dered = snobj.model.get_max(['B'], deredden=1)[1][0]
+   R = snobj.data['B'].filter.R(2.0, redlaw=snobj.redlaw_gal)
+   assert red - dered == pytest.approx(R*snobj.EBVgal, rel=1e-6)
+
+
+def test_kcorr_mangle_MW_R_uses_Rv_gal(snobj):
+   snobj.replot = False
+   snobj.choose_model('max_model', stype='st')
+   snobj.fit(bands=['B', 'V', 'r'], dokcorr=False)
+   R = {}
+   for Rv in (3.1, 2.0):
+      snobj.Rv_gal = Rv
+      snobj.kcorr(bands=['B', 'V', 'r'], use_model=1, interp=0)
+      R[Rv] = scipy.interpolate.splev(snobj.Tmax, snobj.Robs['B'])
+   # R_B ~ R_V + 1: a lower R_V gives a lower R_B
+   assert R[2.0] < R[3.1] - 0.5

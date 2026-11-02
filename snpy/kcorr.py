@@ -798,7 +798,8 @@ def kcorr_mangle2(waves, spectra, filts, mags, m_mask, restfilts, z,
 
 def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3', 
       colorfilts=None, full_output=0, mepoch=False, Scorr=False, 
-      extrapolate=False, redlaw='ccm', redlaw_gal=None, redlaw_host=None, **mopts):
+      extrapolate=False, redlaw='ccm', redlaw_gal=None, redlaw_host=None,
+      Rv_gal=3.1, **mopts):
    '''Compute (cross-)band K-corrections with "mangling" using built-in library
    of spectral SEDs. The SEDs are first multiplied by a smooth spline such that
    the synthetic colors match the observed colors.
@@ -826,6 +827,8 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
       Scorr (bool): If True, compute S-corrections rather than K-corrections
       extrapolate (bool): If True, extrapolate beyond limits of SED sequence
                           (see :func:`.get_SED`.
+      Rv_gal (float): R_V of the Milky-Way extinction, used for the
+                      returned R_obs (full_output).
       mopts (dict): All additional arguments to function are sent to 
                     :func:`snpy.mangle_spectrum.mangle_spectrum2`.
    
@@ -926,7 +929,7 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
              kcorrs[-1].append(k)
              mask[-1].append(f)
          Rts.append(R_obs_spectrum(filts, spec_wavs[j], man_spec_fs[j], z, 
-            0.01, 0.0, redlaw=redlaw, redlaw_gal=redlaw_gal,
+            0.01, 0.0, Rv_gal=Rv_gal, redlaw=redlaw, redlaw_gal=redlaw_gal,
             redlaw_host=redlaw_host))
    else:
       for j in range(len(days)):
@@ -997,7 +1000,8 @@ def kcorr_mangle(days, filts, mags, m_mask, restfilts, z,sBV = 1.0, version='H3'
             kcorrs[-1].append(k)
             mask[-1].append(f)
          Rts.append(R_obs_spectrum(filts, spec_wav, man_spec_f[0], z, 0.01, 
-            0.0, redlaw=redlaw, redlaw_gal=redlaw_gal, redlaw_host=redlaw_host))
+            0.0, Rv_gal=Rv_gal, redlaw=redlaw, redlaw_gal=redlaw_gal,
+            redlaw_host=redlaw_host))
    Rts = np.array(Rts)
    gids = np.greater(Rts, 0)
    Rtave = np.array([np.average(np.compress(gids[:,k], Rts[:,k])) \

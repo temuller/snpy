@@ -1050,19 +1050,9 @@ class max_model(model):
             # add the K-correction
             mmax = mmax + scipy.interpolate.splev(Tmaxs[-1], self.parent.ks_tck[band])
          if not deredden:
-            if band in self.parent.Robs:
-               if type(self.parent.Robs[band]) is type(()):
-                  R = scipy.interpolate.splev(Tmaxs[-1], self.parent.Robs[band])
-               else:
-                  R = self.parent.Robs[band]
-            else:
-               R = kcorr.R_obs(band, self.parent.z, x0, 0.0, 
-                     self.parent.EBVgal, self.parent.Rv_gal, 
-                     version=self.parent.k_version,
-                     redlaw=self.parent.redlaw_gal,
-                     extrapolate=self.parent.k_extrapolate, sBV=self._sBV())
-
-            mmax = mmax + R*self.parent.EBVgal
+            # same Milky-Way extinction as the model (__call__)
+            R = self.MWR(band, np.array([Tmaxs[-1] - self.parent.Tmax]))
+            mmax = mmax + float(np.squeeze(R))*self.parent.EBVgal
          Mmaxs.append(mmax)
          eMmaxs.append(self.errors[rband+'max'])
          rbands.append(rband)
@@ -1258,20 +1248,9 @@ class max_model2(model):
             # add the K-correction
             mmax = mmax + scipy.interpolate.splev(Tmaxs[-1], self.parent.ks_tck[band])
          if not deredden:
-            if band in self.parent.Robs:
-               if type(self.parent.Robs[band]) is type(()):
-                  R = scipy.interpolate.splev(Tmaxs[-1], 
-                        self.parent.Robs[band])
-               else:
-                  R = self.parent.Robs[band]
-            else:
-               R = kcorr.R_obs(band, self.parent.z, x0, 0.0, 
-                     self.parent.EBVgal, self.parent.Rv_gal, 
-                     version=self.parent.k_version,
-                     redlaw=self.parent.redlaw_gal,
-                     extrapolate=self.parent.k_extrapolate, sBV=self._sBV())
-
-            mmax = mmax + R*self.parent.EBVgal
+            # same Milky-Way extinction as the model (__call__)
+            R = self.MWR(band, np.array([Tmaxs[-1] - self.parent.Tmax]))
+            mmax = mmax + float(np.squeeze(R))*self.parent.EBVgal
          Mmaxs.append(mmax)
          eMmaxs.append(self.errors[rband+'max'])
          rbands.append(rband)

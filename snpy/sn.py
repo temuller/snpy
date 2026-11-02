@@ -972,7 +972,7 @@ class sn(object):
             mags, masks, restbands, self.z, sBV=s,
             colorfilts=mbands, version=self.k_version, full_output=1, 
             extrapolate=kextrap, redlaw=self.redlaw, 
-            redlaw_gal=self.redlaw_gal, **mopts)
+            redlaw_gal=self.redlaw_gal, Rv_gal=self.Rv_gal, **mopts)
       mask = np.greater(mask, 0)
       kcorrs = np.array(kcorrs)
       Rts = np.array(Rts)
