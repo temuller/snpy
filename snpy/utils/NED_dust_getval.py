@@ -8,7 +8,7 @@ import re
 debug = 0
 
 BASE_URL = "http://nedwww.ipac.caltech.edu/cgi-bin/nph-calc?in_csys=Equatorial&in_equinox=J2000.0&obs_epoch=2000.0&lon=%sd&lat=%sd&pa=0.0&out_csys=Equatorial&out_equinox=J2000.0"
-pat = re.compile('E\(B-V\)\s*=\s*([0-9\.]+)\s*mag')
+pat = re.compile(r'E\(B-V\)\s*=\s*([0-9\.]+)\s*mag')
 
 
 def get_dust_RADEC(ra, dec):

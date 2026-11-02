@@ -27,7 +27,7 @@ def ccm(wave, strict_ccm=0):
                         
    Returns:
       2-tupe (a,b):
-      The coeffients such that :math:`A_\lambda/A_V = a + b/R_V`
+      The coeffients such that :math:`A_\\lambda/A_V = a + b/R_V`
    '''
    x = 10000./ wave                ; #Convert to inverse microns 
    a = 0.0*x
@@ -114,7 +114,7 @@ def fm(wave, R_V=3.1, avglmc=False, lmc2=False):
        lmc2 (bool): if True, the fit parameters are set to the values determined
                 for the LMC2 field (including 30 Dor) by Misselt et al.
    Returns:
-      foat array: :math:`R_\lambda = A_\lambda/E(B-V)`
+      foat array: :math:`R_\\lambda = A_\\lambda/E(B-V)`
 
    '''
    x = 10000./ wave.astype(np.float64)  # Convert to inverse microns 
@@ -192,7 +192,7 @@ def fm07_full(wave, x0, gamma, c1,c2,c3,c4,c5,o1,o2,o3,R,iscale,ipower=1.84):
        ipower: power-law index for NIR.
 
    Returns:
-      foat array: E(V-\lambda)/E(B-V)
+      foat array: E(V-\\lambda)/E(B-V)
 
    '''
    x = 10000./wave.astype(np.float64) # Convert ot inverse microns
@@ -267,7 +267,7 @@ def nataf(wave, R_V=3.1, strict_ccm=False):
                         
    Returns:
       2-tupe (a,b):
-      The coeffients such that :math:`A_\lambda/A_V = a + b/R_V`
+      The coeffients such that :math:`A_\\lambda/A_V = a + b/R_V`
    '''
    x = 10000./ wave                ; #Convert to inverse microns 
    a = 0.0*x

@@ -140,14 +140,14 @@ class model:
       return K,mask2
 
    def MWR(self, band, t):
-      '''Determine the best :math:`R_\lambda` for the foreground MW extinction.
+      '''Determine the best :math:`R_\\lambda` for the foreground MW extinction.
       
       Args:
          band (str):  The name of the filter
          t (float array): The epoch (t - T(Bmax)) of the observations.
          
       Returns:
-         float array: :math:`R_\lambda` for the filter at times t.
+         float array: :math:`R_\\lambda` for the filter at times t.
       '''
 
       if band in self.parent.Robs:

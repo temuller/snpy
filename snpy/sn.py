@@ -1011,7 +1011,7 @@ class sn(object):
       Returns:
          4-tuple: (wave, mflux, oflux, mfunc)
 
-         * wave: wavelength of SED in \AA
+         * wave: wavelength of SED in \\AA
          * mflux: mangled SED flux
          * oflux: original (un-mangled) SED flux
          * mfunc: mangling function evaluated at [wave]
@@ -1398,7 +1398,7 @@ class sn(object):
             {SN}_lc_{filter}_model.dat
          
          which will contain the photometric data and model for each filter (if
-         that filter was fit with a model).  In the \*_data.dat, there is an
+         that filter was fit with a model).  In the \\*_data.dat, there is an
          extra flag column that indicates if the k-corrections are valid (0) or
          invalid (1).
       '''
@@ -2279,7 +2279,7 @@ class sn(object):
                             compute assuming reddening due to dust
                             with reddening law R_V = Rv
          Rv (float or None): If specified and R is None, use this
-                            Rv to compute R(\lambda) for filters
+                            Rv to compute R(\\lambda) for filters
          interp (bool):  If True, interpolate missing data
          use_model (bool):  If True, use a fit model, rather than an
                          interpolator to do the interpolation
@@ -2480,7 +2480,7 @@ class sn(object):
          cosmo='LambdaCDM', **args):
       '''
       Produce a quasi-bolometric flux light-curve based on the input [bands]
-      by integrating a template SED from \lambda=lam1 to \lambda=lam2.
+      by integrating a template SED from \\lambda=lam1 to \\lambda=lam2.
 
       Args:
          bands (list):  list of filters to constrain the bolometric flux
@@ -2504,7 +2504,7 @@ class sn(object):
                               (foreground) component. If None, will look up in
                               the supernova object (default 'ccm').
          extrap_red (str or None):  Specify how we extrapolate to 
-                                     \lambda -> lam1 'RJ' specifies 
+                                     \\lambda -> lam1 'RJ' specifies 
                                      Rayleigh-Jeans. None turns off 
                                      extrapolation in the red.
          Tmax (float or None): Used by SED method to set the epoch of maximum.

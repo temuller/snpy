@@ -345,7 +345,7 @@ def plot_filters(self, bands=None, day=0, fill=0, outfile=None):
    p.clear()
    ax = p.add_subplot(111, 
          title='Filter responses + %s SED (day %d)' % (self.k_version,day),
-         xlabel='Wavelength ($\AA$)', ylabel='Relative Flux',
+         xlabel='Wavelength ($\\AA$)', ylabel='Relative Flux',
          autoscale_on=False, ylim=(0,1.1))
 
    p.current_day = day
@@ -1190,7 +1190,7 @@ def draw_lc_params(self, ax):
       t = ax.axhline(self.Mmax + self.dm15, color='0.5');  self._lc_labs.append(t)
       self._lc_labs.append(t)
       t = ax.text(self.Tmax+15*(1+self.parent.z), self.Mmax+self.dm15+0.1,
-         "$\Delta m_{15} = %.2f$" % self.dm15, va='top', ha='right', 
+         "$\\Delta m_{15} = %.2f$" % self.dm15, va='top', ha='right', 
          color='0.5')
       self._lc_labs.append(t)
 
