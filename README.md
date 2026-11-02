@@ -16,10 +16,12 @@ http://csp.obs.carnegiescience.edu/data/snpy/installing_snoopy2
 
 The Milky-Way E(B-V) of each SN is read from local copies of the Schlegel,
 Finkbeiner & Davis (1998) dust maps (with the Schlafly & Finkbeiner 2011
-recalibration by default). Download `SFD_dust_4096_ngp.fits` and
-`SFD_dust_4096_sgp.fits` (e.g. from https://github.com/kbarbary/sfddata)
-and point the `SFD_DIR` environment variable to their directory. Without
-them, `EBVgal` must be set by hand before fitting.
+recalibration by default). The maps (128 MB) are downloaded automatically
+the first time they are needed, into the SNooPy installation directory
+(`snpy/sfddata/`) or, if that is not writable, into `~/.cache/snpy/sfddata`.
+To use copies you already have, point the `SFD_DIR` environment variable to
+their directory. To download them in advance, run
+`python -c "from snpy.utils import sfd_dust; sfd_dust.download()"`.
 
 Documentation can be found the the docs/ directory under the source tree.  
 But briefly, here is what SNOOPY can do:

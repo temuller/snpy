@@ -17,5 +17,5 @@ temporary directory for every test, so relative-path reads resolve and
 files written by the tests do not touch the source tree.
 
 The Milky-Way E(B-V) is pinned to 0.041 for SN2006ax by conftest.py. The
-tests of the SFD dust maps themselves (test_sfd_dust.py) run only when the
-SFD_DIR environment variable points to the maps; otherwise they are skipped.
+test of the SFD map values (test_sfd_dust.py) runs only when the SFD_DIR
+environment variable points to the maps; otherwise it is skipped.

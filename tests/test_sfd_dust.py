@@ -34,11 +34,62 @@ def test_sfd_value(mapdir):
 
 def test_missing_maps_raise(tmp_path, monkeypatch):
    monkeypatch.delenv('SFD_DIR', raising=False)
+   monkeypatch.setattr(sfd_dust, 'AUTO_DOWNLOAD', False)
+   monkeypatch.setattr(sfd_dust, 'package_dir', lambda: str(tmp_path / 'pkg'))
+   monkeypatch.setattr(sfd_dust, 'cache_dir', lambda: str(tmp_path / 'cache'))
    get_ebv = _get_ebv
    with pytest.raises(sfd_dust.SFDMapError):
       get_ebv(RA, DEC)
+   # an explicit directory without the maps is an error, never a download
+   monkeypatch.setattr(sfd_dust, 'AUTO_DOWNLOAD', True)
    with pytest.raises(sfd_dust.SFDMapError):
       get_ebv(RA, DEC, mapdir=str(tmp_path))
+
+
+def _fake_server(tmp_path, monkeypatch):
+   src = tmp_path / 'server'
+   src.mkdir(exist_ok=True)
+   md5s = {}
+   for f in sfd_dust.FILES:
+      (src / f).write_bytes(f.encode() * 1000)
+      md5s[f] = sfd_dust._md5(str(src / f))
+   monkeypatch.setattr(sfd_dust, 'BASE_URL', src.as_uri() + '/')
+   monkeypatch.setattr(sfd_dust, 'FILES', md5s)
+   monkeypatch.delenv('SFD_DIR', raising=False)
+   return md5s
+
+
+def test_auto_download(tmp_path, monkeypatch):
+   '''Missing maps are downloaded into the installation directory, or the
+   user cache when that is not writable, and then found there.'''
+   _fake_server(tmp_path, monkeypatch)
+   pkg, cache = tmp_path / 'pkg', tmp_path / 'cache'
+   monkeypatch.setattr(sfd_dust, 'package_dir', lambda: str(pkg))
+   monkeypatch.setattr(sfd_dust, 'cache_dir', lambda: str(cache))
+   assert sfd_dust.get_mapdir() == str(pkg)
+   assert sorted(p.name for p in pkg.iterdir()) == sorted(sfd_dust.FILES)
+   assert all(p.stat().st_mode & 0o044 for p in pkg.iterdir())
+   # second call finds them without downloading
+   monkeypatch.setattr(sfd_dust, 'download', lambda *a, **k: 1/0)
+   assert sfd_dust.get_mapdir() == str(pkg)
+
+   monkeypatch.undo()
+   _fake_server(tmp_path, monkeypatch)
+   ro = tmp_path / 'readonly'
+   monkeypatch.setattr(sfd_dust, 'package_dir', lambda: str(ro))
+   monkeypatch.setattr(sfd_dust, 'cache_dir', lambda: str(cache))
+   monkeypatch.setattr(sfd_dust, '_writable', lambda d: d == str(cache))
+   assert sfd_dust.get_mapdir() == str(cache)
+   assert not ro.exists()
+
+
+def test_download_bad_checksum(tmp_path, monkeypatch):
+   _fake_server(tmp_path, monkeypatch)
+   monkeypatch.setattr(sfd_dust, 'FILES', {f: '0'*32 for f in sfd_dust.FILES})
+   with pytest.raises(sfd_dust.SFDMapError, match='Checksum'):
+      sfd_dust.download(str(tmp_path / 'out'), verbose=False)
+   # no partial file is left behind
+   assert list((tmp_path / 'out').iterdir()) == []
 
 
 def test_missing_maps_sn(datadir, monkeypatch):

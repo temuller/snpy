@@ -30,3 +30,4 @@ utils/*.pyc
 __pycache__
 .cache
 MANIFEST
+snpy/sfddata/

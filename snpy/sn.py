@@ -1268,8 +1268,9 @@ class sn(object):
       Args:
          calibration (str):  Which MW extionction calibraiton ('SF11' or 
                              'SFD98')
-         mapdir (str):  directory of the SFD map files. Default: the
-                        SFD_DIR environment variable.
+         mapdir (str):  directory of the SFD map files. Default: see
+                        :mod:`snpy.utils.sfd_dust` (the maps are downloaded
+                        on first use if not found).
 
       Returns:
          None
@@ -1291,9 +1292,10 @@ class sn(object):
 
    def _check_EBVgal(self):
       if self.EBVgal is None:
-         raise ValueError("%s: the Milky-Way E(B-V) (EBVgal) is not set. Set "
-               "SFD_DIR to the SFD dust-map directory and call getEBVgal(), "
-               "or set EBVgal by hand." % self.name)
+         raise ValueError("%s: the Milky-Way E(B-V) (EBVgal) is not set: "
+               "the SFD dust maps could not be found or downloaded (see "
+               "snpy.utils.sfd_dust). Fix that and call getEBVgal(), or set "
+               "EBVgal by hand." % self.name)
 
    def get_zcmb(self):
       '''Gets the CMB redshift from NED calculator and stores it locally.'''
