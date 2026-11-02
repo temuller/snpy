@@ -41,6 +41,17 @@ def _quniform_prior(p,pmin,pmax,sigma):
    if p >= pmax:  return norm*np.exp(-0.5*(p-pmax)**2/sigma**2)
 
 
+# The template error of a band is computed from the model flux capped at
+# FLUX_CAP times its brightest data point (see model._wrap_model).
+FLUX_CAP = 100.0
+
+class ZeroWeightError(RuntimeError):
+   '''Raised when no data of a filter can be used in the fit (all points
+   are outside the model's range or masked). The filter is in .band.'''
+   def __init__(self, msg, band):
+      RuntimeError.__init__(self, msg)
+      self.band = band
+
 class model:
    '''The base class for SNooPy light-curve models. It contains the parameters
    to be solved and its __call__ function returns the model for a filter's
@@ -176,7 +187,7 @@ class model:
    def _extra_error(self, parameters):
       return 0
 
-   def fit(self, bands, epsfcn=0, **args):
+   def fit(self, bands, epsfcn=0, drop_bands=True, **args):
       '''Fit the model with currently fixed and free parameters againts the
       set of bands [bands].  All other arguments are passed directly to
       the model() member function as optional arguments.  After running,
@@ -186,6 +197,11 @@ class model:
       Args:
          bands (list of str): The filters to fit
          epsfcn (float): see scipy.optmize.leastsq.
+         drop_bands (bool): If True (default), a filter none of whose data
+                     can be used (e.g. all outside the template's range) is
+                     left out with a warning and the fit restarted, as long
+                     as two filters remain. self._fbands holds the filters
+                     actually fit. If False, raise ZeroWeightError.
          error_scaling (str): How the covariance matrix is scaled by the
                      reduced chi-square: 'up' (default) only inflates the
                      errors when chi2_nu > 1, 'always' also shrinks them when
@@ -200,6 +216,7 @@ class model:
          be set with best-fit values. self.C will be updated with the 
          values from the covariance matrix.
       '''
+      entry = (dict(self.parameters), dict(self.errors), dict(args))
       error_scaling = args.pop('error_scaling', 'up')
       if error_scaling not in ['up', 'always', 'none']:
          raise ValueError("error_scaling must be 'up', 'always' or 'none'")
@@ -245,15 +262,21 @@ class model:
          pars,C,self.info,self.mesg,self.ier = \
                leastsq(self._wrap_model, pars, (bands,error), full_output=1,
                        epsfcn=epsfcn)
-      except RuntimeError as e:
-         if 'All weights for filter' in str(e):
-            raise RuntimeError(
+      except ZeroWeightError as e:
+         if drop_bands and len(bands) > 2:
+            warnings.warn("No usable data in filter %s: leaving it out of "
+                  "the fit." % e.band, stacklevel=2)
+            self.parameters,self.errors,args = entry
+            return self.fit([b for b in bands if b != e.band], epsfcn=epsfcn,
+                  drop_bands=drop_bands, **args)
+         raise ZeroWeightError(
                "%s\nThis usually means the '%s' shape parameter cannot "
                "describe the light curve of this object (for example, "
-               "'st' requires the object to be in the calibration sample). "
+               "'st' requires the object to be in the calibration sample), "
+               "or that there are no data within the template's range. "
                "Try choosing the model with a different shape parameter "
-               "(e.g. stype='dm15')." % (e, getattr(self, 'stype', '?')))
-         raise
+               "(e.g. stype='dm15')." % (e, getattr(self, 'stype', '?')),
+               e.band)
       # leastsq: 1-4 = converged; 5 = evaluation limit reached; 6-8 = the
       # tolerances are too small to improve further
       self.converged = self.ier in [1, 2, 3, 4]
@@ -339,6 +362,15 @@ class model:
    '''
       raise NotImplementedError('Derived class must overide')
 
+   def _flux_cap(self, band):
+      '''FLUX_CAP times the brightest (flux + 3 sigma) of the band's data.'''
+      d = self.parent.data[band]
+      m = np.asarray(d.mask, dtype=bool)
+      if not np.any(m):
+         return np.inf
+      fmax = np.max((d.flux + 3*d.e_flux)[m])
+      return FLUX_CAP*fmax if fmax > 0 else np.inf
+
    def _wrap_model(self, pars, bands, error):
       resids_list = []
       for i in range(len(pars)):
@@ -356,14 +388,20 @@ class model:
             msg = "All weights for filter %s are zero." % band
             msg += " The fitter is in a part of parameter space where the model"
             msg += " is not valid or there is no useful data."
-            raise RuntimeError(msg)
+            raise ZeroWeightError(msg, band)
          # Outside their domain, models can return absurd values (e.g.
          # -800 mag) that overflow when converted to flux. They are masked
          # out, so silence the warnings and never let them enter the residuals.
          with np.errstate(over='ignore', invalid='ignore'):
             if self.model_in_mags:
                f = np.power(10, -0.4*(mod - self.parent.data[band].filter.zp))
-               cov_f = np.power(f*err/1.0857,2)
+               # The template error scales with the model flux. Cap that
+               # flux at FLUX_CAP (100) x the brightest data point (5 mag): otherwise a model
+               # running off to absurdly bright values has errors growing
+               # as fast (overflowing to inf), so its residuals stay bounded
+               # (then vanish) and the fitter can "switch off" a band.
+               f_err = np.minimum(f, self._flux_cap(band))
+               cov_f = np.power(f_err*err/1.0857,2)
             else:
                f = mod
                cov_f = np.power(err,2)

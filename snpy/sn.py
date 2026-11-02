@@ -1953,7 +1953,7 @@ class sn(object):
          # We're going to skipp all stuff and just run the fitter and plot
          if bands is None:
             bands = list(self.data.keys())
-         self.model.fit(bands, **args)
+         bands = self._model_fit(bands, **args)
          if self.replot: self.plot()
          return
 
@@ -1991,9 +1991,9 @@ class sn(object):
          print("Doing Initial Fit to get Tmax...")
       if 'Tmax' not in args and self.model.parameters.get('Tmax') is None \
             and self._only_post_max(bands):
-         self._fit_multistart_Tmax(bands, **args)
+         bands = self._fit_multistart_Tmax(bands, **args)
       else:
-         self.model.fit(bands, **args)
+         bands = self._model_fit(bands, **args)
 
 
       if dokcorr:
@@ -2015,7 +2015,7 @@ class sn(object):
                print("Doing first fit...")
             else:
                print("Doing fit...")
-         self.model.fit(bands, **args)
+         bands = self._model_fit(bands, **args)
  
          if mangle:
             if not self.quiet:
@@ -2024,7 +2024,7 @@ class sn(object):
             self.kcorr(bands, interp=0, use_model=1, use_stretch=k_stretch, **margs)
             if not self.quiet:
                print("Doing final fit...")
-            self.model.fit(bands, **args)
+            bands = self._model_fit(bands, **args)
 
          # The last fit can move the shape parameter and Tmax away from the
          # values the k-corrections were computed with. Iterate until they
@@ -2051,7 +2051,7 @@ class sn(object):
                         **margs)
                else:
                   self.kcorr(kbands, mangle=0, use_stretch=k_stretch)
-               self.model.fit(bands, **args)
+               bands = self._model_fit(bands, **args)
             else:
                if kcorr_iter > 0 and not converged():
                   warnings.warn("k-corrections did not converge after %d "
@@ -2073,34 +2073,42 @@ class sn(object):
             return False
       return True
 
+   def _model_fit(self, bands, **args):
+      '''self.model.fit(bands), returning the filters actually fit (the
+      model leaves out filters with no usable data).'''
+      self.model.fit(bands, **args)
+      return list(self.model._fbands)
+
    def _fit_multistart_Tmax(self, bands, dts=(0, 5, 10, 15), **args):
       '''Initial fit of a light curve observed only after maximum. The
       default Tmax guess (the first epoch) is then too late and the fit can
       end up in a local minimum, so start from the guess and from dts
       rest-frame days earlier and keep the solution with the lowest reduced
-      chi-square (the data used can differ between starts).'''
+      chi-square (the data used can differ between starts). Returns the
+      filters actually fit.'''
       T0 = self.model.guess('Tmax')
       start = dict(self.model.parameters)
       best = None
       for dt in dts:
          # parameters added by a previous start (e.g. Xmax) are guessed again
-         for p in self.model.parameters:
-            self.model.parameters[p] = start.get(p)
+         self.model.parameters = dict(start)
          self.model.parameters['Tmax'] = T0 - dt*(1 + self.z)
+         # Starts are compared by chi-square, so they must fit the same
+         # filters: a start that would need to drop one is skipped.
          try:
-            self.model.fit(bands, **args)
+            fbands = self._model_fit(bands, drop_bands=False, **args)
          except RuntimeError:
             continue
          if best is None or self.model.rchisquare < best[0]:
-            best = (self.model.rchisquare, dict(self.model.parameters))
+            best = (self.model.rchisquare, dict(self.model.parameters), fbands)
       if best is None:
-         # every start failed: let the default start raise the error
-         self.model.parameters.update(start)
-         self.model.fit(bands, **args)
-         return
+         # every start failed: fit from the default start, leaving out
+         # filters without usable data (or raising the error)
+         self.model.parameters = dict(start)
+         return self._model_fit(bands, **args)
       # refit from the best solution so the model state is consistent
-      self.model.parameters.update(best[1])
-      self.model.fit(bands, **args)
+      self.model.parameters = dict(best[1])
+      return self._model_fit(best[2], **args)
 
    def fitMCMC(self, bands=None, Nwalkers=None, threads=1, Niter=500, 
          burn=200, tracefile=None, verbose=False, plot_triangle=False,

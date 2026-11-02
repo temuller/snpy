@@ -561,3 +561,58 @@ def test_max_model_systematics_match_shape_parameter(snobj, model, stype):
    other = 'st' if stype == 'dm15' else 'dm15'
    assert systs[stype] is not None
    assert other not in systs
+
+
+def test_band_without_usable_data_is_dropped(snobj):
+   '''A filter whose data all lie outside the template's range is left out
+   (with a warning) instead of making the whole fit fail.'''
+   import warnings
+   from snpy.lc import lc
+   snobj.replot = False
+   d = snobj.data['H']
+   # H data only at +250 days: beyond any template
+   snobj.data['H'] = lc(snobj, 'H', d.MJD[:3]*0 + d.MJD.min() + 250 + num.arange(3),
+                        d.mag[:3], d.e_mag[:3])
+   snobj.choose_model('max_model', stype='st')
+   with pytest.warns(UserWarning, match='No usable data in filter H'):
+      snobj.fit(['B', 'V', 'r', 'H'], dokcorr=False)
+   assert snobj.model._fbands == ['B', 'V', 'r']
+   assert 'Hmax' not in snobj.model.parameters
+
+
+def test_drop_bands_false_raises(snobj):
+   from snpy.model import ZeroWeightError
+   from snpy.lc import lc
+   snobj.replot = False
+   d = snobj.data['H']
+   snobj.data['H'] = lc(snobj, 'H', d.MJD.min() + 250 + num.arange(3),
+                        d.mag[:3], d.e_mag[:3])
+   snobj.choose_model('max_model', stype='st')
+   with pytest.raises(ZeroWeightError) as e:
+      snobj.model.fit(['B', 'V', 'H'], drop_bands=False)
+   assert e.value.band == 'H'
+
+
+def test_runaway_band_is_penalised(snobj):
+   '''A band whose model runs off to absurdly bright magnitudes must cost
+   more chi-square than a sane value, not less.
+
+   Regression test: the template error scales with the model flux, so the
+   residuals of a runaway band stayed bounded (and became 0 once the error
+   overflowed), letting the fitter "switch off" a band; the covariance
+   matrix then came out singular.
+   '''
+   snobj.replot = False
+   snobj.choose_model('max_model', stype='st')
+   snobj.fit(['B', 'V', 'u'], dokcorr=False)
+   m = snobj.model
+   error = {b: snobj.data[b].get_covar(flux=1) for b in m._fbands}
+   pars = [m.parameters[p] for p in m._free]
+   chi2 = lambda: num.sum(m._wrap_model(pars, m._fbands, error)**2)
+   sane = chi2()
+   i = m._free.index('umax')
+   chi2s = []
+   for umax in [5.0, -100., -500.]:
+      pars[i] = umax
+      chi2s.append(chi2())
+   assert sane < chi2s[0] < chi2s[1] < chi2s[2]
