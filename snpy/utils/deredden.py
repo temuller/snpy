@@ -2,14 +2,29 @@
 This modules implements several reddening laws:  extinction as a function of
 wavelength. They are the following:
 
-- ccm: Cardelli, Clayton & Mathis (1989)
+- ccm: Cardelli, Clayton & Mathis (1989), optionally with the optical update
+       of O'Donnell (1994)
 - fm:  Fitzpatrick (1999).
 - fm07_full:  The fully-parametrized Fitzpatrick and Masa (2007) function.
 - fm07: Average Fitzpatric & Masa (2007) for MW.
 - nataf: Experiemental version of CCM from David Nataf.
+
+The CCM/O'Donnell and Fitzpatrick (1999) Milky-Way curves are computed with
+the ``extinction`` package (K. Barbary).
 '''
 import numpy as np
+import extinction
 from scipy.interpolate import UnivariateSpline
+
+def _as_wave(wave):
+   '''Return wave as a 1-d float64 array (what ``extinction`` needs) and a
+   function that restores the input's shape.'''
+   arr = np.asarray(wave, dtype=np.float64)
+   shape = arr.shape
+   flat = np.ascontiguousarray(arr.ravel())
+   if shape == ():
+      return flat, lambda x: x[0]
+   return flat, lambda x: x.reshape(shape)
 
 def poly(x, c):
    ret = 0
@@ -19,82 +34,32 @@ def poly(x, c):
 
 def ccm(wave, strict_ccm=0):
    '''Returns the Cardelli, Clayton, and Mathis (CCM) reddening curve.
-   
+
+   Computed with ``extinction.ccm89`` (strict_ccm=True) or
+   ``extinction.odonnell94``. As before, the curve is zero outside
+   0.3 < x < 11 (inverse microns).
+
    Args:
       wave (float array): wavelength in Angstroms
       strict_ccm (bool): If True, return original CCM (1989), othewise
                          apply updates from O'Donnel (1994)
-                        
+
    Returns:
       2-tupe (a,b):
       The coeffients such that :math:`A_\\lambda/A_V = a + b/R_V`
    '''
-   x = 10000./ wave                ; #Convert to inverse microns 
-   a = 0.0*x
-   b = 0.0*x
-  
-   # **************************************************************
-   good = np.greater(x, 0.3) * np.less(x, 1.1)   # Infrared
-   if np.any(good):
-      a = np.where(good, 0.574 * np.power(x, 1.61), a)
-      b = np.where(good, -0.527 * np.power(x, 1.61), b)
-  
-   #****************************************************************
-   good = np.greater_equal(x,1.1) * np.less(x, 3.3)        #Optical/NIR
-   if np.any(good):      #Use new constants from O'Donnell (1994)
-      y = x - 1.82
-      if strict_ccm:
-         c1 = [ 1. , 0.17699, -0.50447, -0.02427,  0.72085,     #Original
-                       0.01979, -0.77530,  0.32999 ]            #coefficients
-         c2 = [ 0.,  1.41338,  2.28305,  1.07233, -5.38434,     #from CCM89
-                      -0.62251,  5.30260, -2.09002 ]
-      else:
-         # New coefficents from O'Donnell (1994)
-         c1 = [ 1. , 0.104,   -0.609,    0.701,  1.137,
-                      -1.718,   -0.827,    1.647, -0.505 ]
-         c2 = [ 0.,  1.952,    2.908,   -3.989, -7.985,  
-                      11.102,    5.491,  -10.805,  3.347 ]
-  
-      poly = 0.0
-      for i in range(len(c1)): poly = poly + c1[i]*np.power(y, i)
-      a = np.where(good, poly, a)
-      poly = 0.0
-      for i in range(len(c2)): poly = poly + c2[i]*np.power(y, i)
-      b = np.where(good, poly, b)
-
-   #******************************************************************
-   good = np.greater_equal(x, 3.3) * np.less(x,8)          #Mid-UV
-   if np.any(good):
-      y = 1.0*x
-      good1 = np.greater(y, 5.9)
-      F_a = y*0.0    ; F_b = y*0.0
-      if np.any(good1) > 0:
-         y1 = y - 5.9
-         F_a = -0.04473 * np.power(y1,2) - 0.009779 * np.power(y1,3)
-         F_b = 0.2130 * np.power(y1,2)  +  0.1207 * np.power(y1,3)
-         F_a = np.where(good1, F_a, 0.0)
-         F_b = np.where(good1, F_b, 0.0)
-      
-      a = np.where(good, 
-           1.752 - 0.316*y - (0.104 / ( np.power(y-4.67,2) + 0.341 )) + F_a, a)
-      b = np.where(good,
-           -3.090 + 1.825*y + (1.206 / ( np.power(y-4.67,2) + 0.263 )) + F_b, b)
-  
-   #   *******************************
-  
-   good = np.greater_equal(x, 8) * np.less_equal(x, 11)  #Far-UV
-   if np.any(good):
-      y = x - 8.0
-      c1 = [ -1.073, -0.628,  0.137, -0.070 ]
-      c2 = [ 13.670,  4.257, -0.420,  0.374 ]
-      poly = 0.0*y
-      for i in range(len(c1)):  poly = poly + c1[i]*np.power(y,i)
-      a = np.where(good, poly, a)
-      poly = 0.0*y
-      for i in range(len(c2)):  poly = poly + c2[i]*np.power(y,i)
-      b = np.where(good, poly, b)
-
-   return(a,b)
+   w,restore = _as_wave(wave)
+   law = extinction.ccm89 if strict_ccm else extinction.odonnell94
+   # A/A_V = a + b/R_V is linear in 1/R_V: evaluate at R_V = 1 and 2.
+   f1 = law(w, 1.0, 1.0)
+   f2 = law(w, 1.0, 2.0)
+   b = 2*(f1 - f2)
+   a = f1 - b
+   x = 10000./w
+   good = (x > 0.3) & (x <= 11)
+   a = np.where(good, a, 0.0)
+   b = np.where(good, b, 0.0)
+   return(restore(a), restore(b))
 
 def fm(wave, R_V=3.1, avglmc=False, lmc2=False):
    '''
@@ -117,7 +82,12 @@ def fm(wave, R_V=3.1, avglmc=False, lmc2=False):
       foat array: :math:`R_\\lambda = A_\\lambda/E(B-V)`
 
    '''
-   x = 10000./ wave.astype(np.float64)  # Convert to inverse microns 
+   if not (avglmc or lmc2):
+      w,restore = _as_wave(wave)
+      # A_V = R_V gives A_lambda/E(B-V)
+      return restore(extinction.fitzpatrick99(w, R_V, R_V))
+
+   x = 10000./ np.asarray(wave, dtype=np.float64)  # Convert to inverse microns 
    curve = x*0.
    
    # Set default values of c1,c2,c3,c4,gamma and x0 parameters
