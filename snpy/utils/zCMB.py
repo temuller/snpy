@@ -1,36 +1,38 @@
 '''
-Module for computing the CMB redshift from the heliocentric redshift and
-coordinates. For now, uses NED calculatro, but maybe later will do all the 
-math, so we don't need the interweb.
+Conversions of heliocentric redshifts to the CMB and Local Group frames,
+computed locally from the coordinates (z_cmb_NED is the old NED query, kept
+for reference).'''
 
-Yes, let's do the math. It's not hard:  using astropy.coordinates, you can
-get the angular separation easily. We'll leave the NED version here for
-posterity, though.'''
 
 import urllib.request as urllib
 import re
 from astropy.coordinates import SkyCoord
 from math import sin,cos,pi,sqrt
+import numpy as np
 url_temp = "http://ned.ipac.caltech.edu/cgi-bin/velc?lon=%.6fd&in_csys=Equatorial&lat=%.6fd&in_equinox=J2000.0&vel=%.3f&vfrom=Heliocentric&vto=3K&alon=&a_csys=Equatorial&alat=&a_equinox=J2000.0&avel=0.0"
 pat = re.compile(r'([0-9]+(\.[0-9]*)?)')
 
-# The following from Fixsen et al. (1996)
-CMB_l = 264.14
-CMB_b = 48.26
-CMB_V = 371.0
+# CMB dipole: Planck 2018 (Planck Collaboration 2020, A&A 641, A1)
+CMB_l = 264.021     # galactic longitude (deg)
+CMB_b = 48.253      # galactic latitude (deg)
+CMB_V = 369.82      # Sun's velocity relative to the CMB (km/s)
+C_KMS = 299792.458  # speed of light (km/s)
 
 def z_cmb(z_hel, ra, dec):
    '''heliocentric to CMB redshift conversion.
-      z_hel:  heliocentric redshift of object
-      ra,dec: coorinates in degrees.
+
+   Redshifts compound: (1 + z_cmb) = (1 + z_hel)/(1 + z_sun), where
+   z_sun = -V cos(theta)/c is the redshift from the Sun's motion relative to
+   the CMB along the line of sight (theta: angle to the dipole direction).
+
+      z_hel:  heliocentric redshift of object (float or array)
+      ra,dec: coordinates in degrees (ICRS).
    '''
-   v_hel = z_hel*3e5
    cmb_dir = SkyCoord(l=CMB_l, b=CMB_b, frame='galactic', unit='deg')
    obj_dir = SkyCoord(ra, dec, frame='icrs', unit='deg')
-   ang_sep = cmb_dir.separation(obj_dir).value*pi/180
-   v_corr = CMB_V*cos(ang_sep)
-   vcmb = v_hel + v_corr
-   return vcmb/3e5
+   cos_sep = np.cos(cmb_dir.separation(obj_dir).radian)
+   z_sun = -CMB_V*cos_sep/C_KMS
+   return (1 + np.asarray(z_hel, dtype=float))/(1 + z_sun) - 1
 
 def v_LG(z_hel, ra, dec):
    '''heliocentric to LG velocity conversion.

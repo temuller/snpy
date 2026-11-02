@@ -33,11 +33,11 @@ def test_sn_zhelio(snobj):
    assert round(snobj.z,3) == round(0.016727,3)
 
 def test_sn_zcmb(snobj):
-   assert round(snobj.zcmb,7) == round(0.0179567,7)
+   assert round(snobj.zcmb,7) == round(0.0179755,7)
 
 @haveastropy
 def test_sn_distmod(snobj):
-   assert round(snobj.get_distmod(),3) == round(34.328, 3)
+   assert round(snobj.get_distmod(),3) == round(34.331, 3)
 
 def test_sn_EBVgal(snobj):
    assert round(snobj.EBVgal,3) == round(0.041,3)
@@ -152,7 +152,7 @@ def test_zcmb_follows_z(snobj):
    by hand overrides it.'''
    z0 = snobj.zcmb
    snobj.z = snobj.z + 0.01
-   assert snobj.zcmb == pytest.approx(z0 + 0.01, abs=1e-6)
+   assert snobj.zcmb == pytest.approx(z0 + 0.01, abs=1e-4)
    snobj.ra = snobj.ra + 180.
    assert abs(snobj.zcmb - (z0 + 0.01)) > 1e-3
    snobj.zcmb = 0.05
@@ -166,3 +166,20 @@ def test_distmod_uses_zhel_dimming(snobj):
    expect = cos.distmod(snobj.zcmb).value + \
          5*np.log10((1 + snobj.z)/(1 + snobj.zcmb))
    assert snobj.get_distmod() == pytest.approx(expect, abs=1e-6)
+
+
+def test_z_cmb_exact():
+   '''(1 + z_cmb) = (1 + z_hel)/(1 + z_sun), with the Planck 2018 dipole.'''
+   from astropy.coordinates import SkyCoord
+   from snpy.utils import zCMB
+   apex = SkyCoord(l=zCMB.CMB_l, b=zCMB.CMB_b, frame='galactic',
+                   unit='deg').icrs
+   beta = zCMB.CMB_V/zCMB.C_KMS
+   assert zCMB.z_cmb(0.05, apex.ra.deg, apex.dec.deg) == \
+         pytest.approx(1.05/(1 - beta) - 1, rel=1e-6)
+   anti = SkyCoord(l=zCMB.CMB_l + 180, b=-zCMB.CMB_b, frame='galactic',
+                   unit='deg').icrs
+   assert zCMB.z_cmb(0.05, anti.ra.deg, anti.dec.deg) == \
+         pytest.approx(1.05/(1 + beta) - 1, rel=1e-6)
+   z = zCMB.z_cmb(np.array([0.01, 0.1]), 10., 20.)
+   assert z.shape == (2,)
