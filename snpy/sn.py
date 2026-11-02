@@ -1328,14 +1328,17 @@ class sn(object):
                "EBVgal by hand." % self.name)
 
    def get_zcmb(self):
-      '''Gets the CMB redshift from NED calculator and stores it locally.'''
-      zcmb = getattr(self, '_zcmb', None)
-      if zcmb is not None:
-         return zcmb
-      else:
-         from .utils import zCMB
-         self._zcmb = zCMB.z_cmb(self.z, self.ra, self.decl)
+      '''CMB-frame redshift computed from z, ra and decl (see utils.zCMB).
+      It is cached and recomputed when any of those change. Set
+      ``self.zcmb`` to override it.'''
+      key = (self.z, self.ra, self.decl)
+      if getattr(self, '_zcmb', None) is not None and \
+            getattr(self, '_zcmb_key', None) == key:
          return self._zcmb
+      from .utils import zCMB
+      self._zcmb = zCMB.z_cmb(self.z, self.ra, self.decl)
+      self._zcmb_key = key
+      return self._zcmb
 
    def get_distmod(self, cosmo='LambdaCDM', **kwargs):
       '''Gets the distance modulus based on a given cosmology. Requires the

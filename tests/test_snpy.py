@@ -145,3 +145,15 @@ def test_save_load(snobj):
    assert snobj == t
 
 
+
+
+def test_zcmb_follows_z(snobj):
+   '''zcmb is recomputed when z or the coordinates change, and a value set
+   by hand overrides it.'''
+   z0 = snobj.zcmb
+   snobj.z = snobj.z + 0.01
+   assert snobj.zcmb == pytest.approx(z0 + 0.01, abs=1e-6)
+   snobj.ra = snobj.ra + 180.
+   assert abs(snobj.zcmb - (z0 + 0.01)) > 1e-3
+   snobj.zcmb = 0.05
+   assert snobj.zcmb == 0.05
