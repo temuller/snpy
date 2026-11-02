@@ -37,7 +37,7 @@ def test_sn_zcmb(snobj):
 
 @haveastropy
 def test_sn_distmod(snobj):
-   assert round(snobj.get_distmod(),3) == round(34.331, 3)
+   assert round(snobj.get_distmod(),3) == round(34.328, 3)
 
 def test_sn_EBVgal(snobj):
    assert round(snobj.EBVgal,3) == round(0.041,3)
@@ -157,3 +157,12 @@ def test_zcmb_follows_z(snobj):
    assert abs(snobj.zcmb - (z0 + 0.01)) > 1e-3
    snobj.zcmb = 0.05
    assert snobj.zcmb == 0.05
+
+
+def test_distmod_uses_zhel_dimming(snobj):
+   '''d_L = (1 + z_hel) D_M(z_cmb).'''
+   from astropy.cosmology import LambdaCDM
+   cos = LambdaCDM(H0=74.3, Om0=0.27, Ode0=0.73)
+   expect = cos.distmod(snobj.zcmb).value + \
+         5*np.log10((1 + snobj.z)/(1 + snobj.zcmb))
+   assert snobj.get_distmod() == pytest.approx(expect, abs=1e-6)

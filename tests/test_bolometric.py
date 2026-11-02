@@ -19,7 +19,7 @@ def test_bolo_direct(snobj):
       method='direct', interpolate='spline', SED='H3', verbose=True,
       EBVhost=0, Rv=3.1)
    checksum = sum(y)*1e-44
-   assert round(checksum, 2) == round(2.24,2)
+   assert checksum == pytest.approx(2.234, abs=0.002)
 
 def test_bolo_direct_model(snobj):
    
@@ -28,7 +28,7 @@ def test_bolo_direct_model(snobj):
    x,y,f,lims = snobj.bolometric(['u','B','V','r','i','Y','J','H'], 
       method='direct', interpolate='model', SED='H3')
    checksum = sum(y)*1.e-44
-   assert round(checksum,2) == round(2.57, 2)
+   assert checksum == pytest.approx(2.560, abs=0.002)
 
 def test_bolo_SED(snobj):
    from snpy import fset
@@ -38,7 +38,7 @@ def test_bolo_SED(snobj):
       method='SED', interpolate='spline', refband='B', lam1=l0,
       lam2=l1, SED='H3', EBVhost=0, Rv=3.1)
    checksum = sum(y)*1.e-44
-   assert round(checksum,2) == round(2.71, 2)
+   assert checksum == pytest.approx(2.703, abs=0.002)
 
 
 def test_bolo_SED_tmin_tmax(snobj):

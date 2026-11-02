@@ -1352,7 +1352,10 @@ class sn(object):
          kwargs (dict): Extra arguments for given cosmology
          
       Returns:
-         float: mu, the distance modulus in magnitudes.
+         float: mu, the distance modulus in magnitudes, with the luminosity
+         distance d_L = (1 + z) D_M(zcmb): the comoving distance from the
+         CMB-frame redshift and the (1 + z) dimming from the observed
+         (heliocentric) redshift.
       '''
       try:
          from astropy import cosmology
@@ -1373,7 +1376,8 @@ class sn(object):
       else:
          cos = c
 
-      return cos.distmod(self.zcmb).value
+      DM = cos.comoving_transverse_distance(self.zcmb).to('pc').value
+      return 5*np.log10((1 + self.z)*DM/10.)
 
    def get_lb(self):
       '''Computes the galactic coordinates of this objects.
