@@ -4,6 +4,7 @@ include CHANGELOG
 include INSTALL
 include README.md
 include snpy/*.pickle
+include snpy/*.json
 include snpy/*.dat
 include snpy/typeIa/*
 include snpy/CSPtemp/*.pickle

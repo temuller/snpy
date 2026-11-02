@@ -21,7 +21,7 @@ import scipy.interpolate
 import numpy as np
 #from numpy import median, bool, diag
 from numpy.linalg import inv
-import pickle
+import json
 from glob import glob
 
 Ia_w,Ia_f = kcorr.get_SED(0, 'H3')
@@ -1535,15 +1535,19 @@ class color_model(model):
          raise RuntimeError("Error, to use color-model, you must have a B rest-frame observation")
       self.nf = nf
 
-      cfile = os.path.join(base,"color_priors.pickle")
+      cfile = os.path.join(base,"color_priors.json")
       if not os.path.isfile(cfile):
-         raise ValueError("Calibration file not found: %s" % \
-               (self.calibration+".pickle"))
+         raise ValueError("Calibration file not found: %s" % cfile)
       self.redlaw = self.args.get('redlaw', 'ccm')
       self.rvprior = self.args.get('rvprior', 'uniform')
-      f = open(cfile, 'rb')
-      cdata = pickle.load(f, encoding='iso-8859-1')
-      f.close()
+      with open(cfile) as f:
+         cdata = json.load(f)
+      for law in cdata.values():
+         for prior in law.values():
+            for key in ['mean', 'vars', 'covar', 'mu_i', 'tau_i', 'pi_i']:
+               if key in prior:
+                  prior[key] = np.array(prior[key])
+            prior['colors'] = [tuple(c) for c in prior['colors']]
       if self.redlaw not in cdata or \
             self.rvprior not in cdata[self.redlaw]:
          raise ValueError("Intrinsic colors for %s prior and %s reddening law not found" %\
