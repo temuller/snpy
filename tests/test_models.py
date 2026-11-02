@@ -487,3 +487,22 @@ def test_Rv_model_get_max_matches_model_at_peak(snobj):
       # get_max (in every model) takes the template peak to be 0 mag;
       # the templates actually peak within ~0.01 mag of it
       assert M == pytest.approx(num.min(m(band, t)[0]), abs=0.015)
+
+
+@pytest.mark.parametrize("ier,converged", [(1, True), (5, False)])
+def test_fit_reports_leastsq_convergence(snobj, monkeypatch, ier, converged):
+   """leastsq hitting its evaluation limit used to be only printed."""
+   import warnings
+   from snpy import model as M
+   real = M.leastsq
+   def fake(*a, **k):
+      pars, C, info, mesg, _ = real(*a, **k)
+      return pars, C, info, 'fake message', ier
+   monkeypatch.setattr(M, 'leastsq', fake)
+   snobj.replot = False
+   snobj.choose_model('max_model', stype='st')
+   with warnings.catch_warnings(record=True) as W:
+      warnings.simplefilter('always')
+      snobj.fit(bands=['B', 'V'], dokcorr=False)
+   assert snobj.model.converged == converged
+   assert any('did not converge' in str(w.message) for w in W) == (not converged)

@@ -7,6 +7,7 @@ classing Model and overriding the member functions.
 New:  Add an optional [decline_param] to choose between a dm15 model and stretch
       (st)  model'''
 import os
+import warnings
 from snpy import ubertemp
 from snpy import kcorr
 from snpy.utils import redlaw
@@ -252,7 +253,11 @@ class model:
                "Try choosing the model with a different shape parameter "
                "(e.g. stype='dm15')." % (e, getattr(self, 'stype', '?')))
          raise
-      if self.ier > 4:  print(self.mesg)
+      # leastsq: 1-4 = converged; 5 = evaluation limit reached; 6-8 = the
+      # tolerances are too small to improve further
+      self.converged = self.ier in [1, 2, 3, 4]
+      if not self.converged:
+         warnings.warn("The fit did not converge: %s" % self.mesg, stacklevel=3)
 
       # evaluate at the solution: only data actually used count as dof
       self.info['fvec'] = self._wrap_model(pars, bands, error)
