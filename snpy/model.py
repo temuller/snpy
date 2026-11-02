@@ -855,7 +855,7 @@ class EBV_model2(model):
       filter [band].  The calibration paramter allows you to choose which
       fit (1-6) in Folatelli et al. (2009), table 9'''
       if band not in self.a[calibration]:
-         raise ValueError("Error, filter %s cannot be fit with this calibration")
+         raise ValueError("Error, filter %s cannot be fit with this calibration" % band)
       if self.stype in ['st']:
          delta = self.st - 1.0
       else:
@@ -1119,7 +1119,10 @@ class max_model(model):
       for key in systs:
          if key in merrs:
             systs[key] = merrs[key]
-      systs['st'] = 0.03
+      if self.stype == 'dm15':
+         systs['dm15'] = 0.06
+      else:
+         systs['st'] = 0.03
       systs['Tmax'] = 0.34
 
       return(systs)
@@ -1278,7 +1281,10 @@ class max_model2(model):
       for key in systs:
          if key in merrs:
             systs[key] = merrs[key]
-      systs['st'] = 0.03
+      if self.stype == 'dm15':
+         systs['dm15'] = 0.06
+      else:
+         systs['st'] = 0.03
       systs['Tmax'] = 0.34
       return(systs)
 

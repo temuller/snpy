@@ -549,3 +549,15 @@ def test_fit_passes_epsfcn_to_leastsq(snobj, monkeypatch):
    snobj.choose_model('max_model', stype='st')
    snobj.fit(bands=['B', 'V'], dokcorr=False, epsfcn=1e-10)
    assert seen and all(e == 1e-10 for e in seen)
+
+
+@pytest.mark.parametrize("model", ['max_model', 'max_model2'])
+@pytest.mark.parametrize("stype", ['st', 'dm15'])
+def test_max_model_systematics_match_shape_parameter(snobj, model, stype):
+   snobj.replot = False
+   snobj.choose_model(model, stype=stype)
+   snobj.fit(bands=['B', 'V'], dokcorr=False)
+   systs = snobj.systematics()
+   other = 'st' if stype == 'dm15' else 'dm15'
+   assert systs[stype] is not None
+   assert other not in systs
